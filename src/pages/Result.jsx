@@ -129,6 +129,35 @@ export default function Result({ attemptId, go }) {
               <b className="text-violet-600 text-[22px] font-mono">{formatClock(attempt.timeSpentSec)}</b>
             </div>
 
+            {/* section breakdown */}
+            <div className="mt-5 flex items-center gap-3">
+              <b className="text-[12px] tracking-[0.22em] text-[var(--v-muted)]">SECTION BREAKDOWN</b>
+              <span className="flex-1 h-px bg-[var(--v-line)]" />
+            </div>
+            <div className="mt-3 grid sm:grid-cols-2 gap-2.5">
+              {(() => {
+                const bySec = new Map();
+                attempt.questions.forEach((q) => {
+                  const t = q.section_title || "General";
+                  if (!bySec.has(t)) bySec.set(t, { correct: 0, answered: 0, total: 0 });
+                  const r = bySec.get(t);
+                  r.total++;
+                  const a = attempt.answers[q.id];
+                  if (a) { r.answered++; if (a === q.correct_answer) r.correct++; }
+                });
+                return [...bySec.entries()].map(([t, r]) => (
+                  <div key={t} className="rounded-2xl border border-[var(--v-line)] bg-[var(--v-bg)] px-4 py-3">
+                    <div className="flex items-center gap-2 text-sm"><b className="truncate">{t}</b>
+                      <span className="ml-auto text-[var(--v-muted)] text-[13px]">{r.correct}/{r.answered} correct · {r.total} Qs</span></div>
+                    <div className="mt-2 h-2 rounded-full bg-black/10 overflow-hidden">
+                      <div className="h-full rounded-full"
+                        style={{ width: `${r.answered ? Math.max(3, Math.round((r.correct / r.answered) * 100)) : 0}%`, background: "linear-gradient(90deg,#6ee7b7,#059669)" }} />
+                    </div>
+                  </div>
+                ));
+              })()}
+            </div>
+
             {/* review modes */}
             <div className="mt-5 flex items-center gap-3">
               <b className="text-[12px] tracking-[0.22em] text-[var(--v-muted)]">REVIEW MODES</b>

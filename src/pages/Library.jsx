@@ -2,6 +2,14 @@ import { useMemo, useRef, useState } from "react";
 import { useVertex } from "../store.jsx";
 import { uid, TINT_GRAD } from "../data/seed.js";
 import { sampleProfitLoss } from "../data/sampleProfitLoss.js";
+import { normalizeExam } from "../engine/examFormat.js";
+import { chapterRollup, chapterAttempts, deleteAttempt, toRecord } from "../engine/attempts.js";
+
+const fmtDate = (ts) => {
+  try {
+    return new Date(ts).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+  } catch { return ""; }
+};
 import { Card, Ico, Orb, Modal, Field, TextInput } from "../components/ui.jsx";
 import { Sidebar, Topbar, BgBlobs } from "../components/Shell.jsx";
 
@@ -17,6 +25,8 @@ export default function Library({ go }) {
   const [menu, setMenu] = useState(null); // {x,y,subId}
   const [modal, setModal] = useState(null); // {mode, subId, ...}
   const [dsModal, setDsModal] = useState(null); // {subjectId, chapterId, title}
+  const [hist, setHist] = useState(null); // {subjectId, chapterId, title}
+  const [tick, setTick] = useState(0); // bump to re-read attempts from storage
   const fileRef = useRef(null);
   const dsFileRef = useRef(null);
 
@@ -34,6 +44,33 @@ export default function Library({ go }) {
     setDsModal(null);
     showToast(`“${label}” linked (${r.count} questions).`);
     go("player", { attemptId: r.attemptId });
+  };
+
+  // real question counts from linked datasets (re-normalized when library/tick changes)
+  const qcounts = useMemo(() => {
+    const m = {};
+    library.subjects.forEach((s) => s.chapters.forEach((c) => {
+      if (!c.dataset) { m[c.id] = 0; return; }
+      try { m[c.id] = normalizeExam(c.dataset).questions.length; }
+      catch { m[c.id] = 0; }
+    }));
+    return m;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [library, tick]);
+
+  // one-click starter: real sample content, linked and launched
+  const loadSample = () => {
+    const subId = uid("sub"), chId = uid("ch");
+    setLibrary((prev) => ({
+      subjects: [...prev.subjects, {
+        id: subId, title: "Maths", desc: "Numbers, algebra, geometry and more.",
+        icon: "calc", tint: "purple",
+        chapters: [{ id: chId, title: "Profit & Loss", tint: "purple" }],
+      }],
+    }));
+    const r = startAttempt(subId, chId, sampleProfitLoss);
+    if (r.attemptId) go("player", { attemptId: r.attemptId });
+    else showToast("Could not start the sample test.");
   };
 
   const shown = useMemo(() => {
@@ -72,8 +109,8 @@ export default function Library({ go }) {
             icon: s.icon || "book", tint: s.tint || "pink",
             chapters: (s.chapters ?? []).map((c) => ({
               id: c.id || uid("ch"), title: String(c.title || "Untitled"),
-              status: c.status === "progress" ? "progress" : "not",
-              pct: c.pct || 0, answered: c.answered || 0, total: c.total || 0, score: c.score || 0, tint: c.tint || "blue",
+              tint: c.tint || "blue", total: c.total || 0,
+              ...(c.dataset ? { dataset: c.dataset } : {}),
             })),
           })),
         });
@@ -127,7 +164,25 @@ export default function Library({ go }) {
         </div>
 
         {/* subjects */}
-        {shown.length === 0 && (
+        {library.subjects.length === 0 && !q.trim() && (
+          <Card float className="mt-3.5 p-10 text-center">
+            <span className="f3d-orb rounded-full mx-auto" style={{ width: 72, height: 72, background: "linear-gradient(180deg,#b39df7,#7c4de8)", color: "#fff" }}>
+              <Ico n="book" s={34} />
+            </span>
+            <h2 className="mt-4 text-xl font-extrabold">Your library is empty</h2>
+            <p className="mt-1.5 text-sm text-[var(--v-muted)] max-w-[440px] mx-auto">
+              Add a subject, upload a question dataset in the Vertex JSON format, or jump straight in with the bundled sample test.
+            </p>
+            <div className="mt-5 flex gap-2.5 justify-center flex-wrap">
+              <button onClick={() => setModal({ mode: "subject" })}
+                className="f3d-btn f3d-btn-violet rounded-xl px-5 py-3 text-[13.5px] font-bold">＋ Add Subject</button>
+              <button onClick={() => fileRef.current?.click()} style={{ "--neon": "#8b5cf6" }}
+                className="neon rounded-xl px-5 py-3 text-[13.5px] font-bold f3d-pill">⤒ Upload JSON</button>
+              <button onClick={loadSample} className="f3d-btn f3d-btn-green rounded-xl px-5 py-3 text-[13.5px] font-bold">▶ Try sample test</button>
+            </div>
+          </Card>
+        )}
+        {shown.length === 0 && (library.subjects.length > 0 || q.trim()) && (
           <div className="f3d mt-3.5 p-11 text-center text-[var(--v-muted)] text-sm border-dashed">
             No subjects or chapters match “{q}”.
             <br />
@@ -156,7 +211,23 @@ export default function Library({ go }) {
             </div>
             {!collapsed[s.id] && (
               <div className="mt-4 grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill,minmax(250px,1fr))" }}>
-                {s.chapters.map((c) => (
+                {s.chapters.map((c) => {
+                  const roll = chapterRollup(c.id);
+                  const nq = qcounts[c.id] ?? 0;
+                  const hasDs = !!c.dataset;
+                  const pill = !hasDs
+                    ? <span className="inline-block mt-[7px] text-[11px] font-bold rounded-full px-[11px] py-1 bg-[#eef1f7] text-[#5b647c] border border-[#dde3ee]">No dataset</span>
+                    : roll.attempts === 0
+                      ? <span className="inline-block mt-[7px] text-[11px] font-bold rounded-full px-[11px] py-1 bg-[#eef1f7] text-[#5b647c] border border-[#dde3ee]">Not started</span>
+                      : roll.status === "in_progress"
+                        ? <span className="inline-block mt-[7px] text-[11px] font-bold rounded-full px-[11px] py-1 bg-[#fde8d4] text-[#c2570b] border border-[#f5cfa5]">In progress · {roll.latestPct}%</span>
+                        : <span className="inline-block mt-[7px] text-[11px] font-bold rounded-full px-[11px] py-1 bg-emerald-50 text-emerald-600 border border-emerald-200">Best {roll.best}%</span>;
+                  const meta = !hasDs
+                    ? "Link a dataset to start testing"
+                    : roll.attempts === 0
+                      ? `${nq} questions · no attempts yet`
+                      : `${roll.answered} / ${roll.total} answered · ${roll.attempts} attempt${roll.attempts === 1 ? "" : "s"} · ${fmtDate(roll.updatedAt)}`;
+                  return (
                   <div key={c.id} onClick={() => openChapter(s.id, c)}
                     className={`neon cht cht-${c.tint || "blue"} rounded-2xl p-4 flex gap-3 items-start shadow-[0_8px_20px_rgba(35,45,80,.07)] hover:-translate-y-[3px] transition-transform cursor-pointer`}
                     style={{ "--neon": NEON[c.tint] ?? NEON.blue }}>
@@ -164,19 +235,29 @@ export default function Library({ go }) {
                       style={{ background: DOC_BG[c.tint] ?? DOC_BG.blue, color: DOC_FG[c.tint] ?? DOC_FG.blue }}>
                       <Ico n="doc" s={26} />
                     </span>
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <h3 className="text-[15px] font-bold truncate">{c.title}</h3>
-                      {c.status === "progress"
-                        ? <span className="inline-block mt-[7px] text-[11px] font-bold rounded-full px-[11px] py-1 bg-[#fde8d4] text-[#c2570b] border border-[#f5cfa5]">In progress · {c.pct}%</span>
-                        : <span className="inline-block mt-[7px] text-[11px] font-bold rounded-full px-[11px] py-1 bg-[#eef1f7] text-[#5b647c] border border-[#dde3ee]">Not started</span>}
-                      <div className="text-[11.5px] text-[#8b91a7] mt-[7px]">
-                        {c.status === "progress" ? `${c.answered} / ${c.total} answered` : `0 / ${c.total} questions`} · Score {c.score}
-                      </div>
+                      {pill}
+                      <div className="text-[11.5px] text-[#8b91a7] mt-[7px]">{meta}</div>
+                      {roll.attempts > 0 && (
+                        <div className="mt-2 h-2 rounded-full bg-black/10 overflow-hidden">
+                          <div className="h-full rounded-full transition-all"
+                            style={{ width: `${Math.max(roll.latestPct, 3)}%`, background: "linear-gradient(90deg,#c4b5fd,#6d28d9)" }} />
+                        </div>
+                      )}
                     </div>
-                    <button onClick={(e) => { e.stopPropagation(); openChapter(s.id, c); }}
-                      className="ml-auto self-center w-[38px] h-[38px] rounded-full shrink-0 bg-white/90 border border-black/5 flex items-center justify-center text-[#3b4370] shadow-[0_6px_14px_rgba(35,45,80,.12)] hover:scale-110 transition-transform">→</button>
+                    <div className="flex flex-col gap-1.5 self-center shrink-0">
+                      {roll.attempts > 0 && (
+                        <button onClick={(e) => { e.stopPropagation(); setHist({ subjectId: s.id, chapterId: c.id, title: c.title }); setTick((t) => t + 1); }}
+                          title="Attempt history"
+                          className="w-[38px] h-[38px] rounded-full bg-white/90 border border-black/5 flex items-center justify-center text-[#3b4370] shadow-[0_6px_14px_rgba(35,45,80,.12)] hover:scale-110 transition-transform">◷</button>
+                      )}
+                      <button onClick={(e) => { e.stopPropagation(); openChapter(s.id, c); }}
+                        className="w-[38px] h-[38px] rounded-full bg-white/90 border border-black/5 flex items-center justify-center text-[#3b4370] shadow-[0_6px_14px_rgba(35,45,80,.12)] hover:scale-110 transition-transform">→</button>
+                    </div>
                   </div>
-                ))}
+                  );
+                })}
                 <button onClick={() => setModal({ mode: "chapter", subId: s.id })} style={{ "--neon": "#8b5cf6" }}
                   className={`neon rounded-2xl min-h-[118px] flex flex-col gap-2 items-center justify-center text-[13px] font-semibold text-[#5b647c] border-[1.5px] border-dashed border-[#c9d2e4] hover:border-violet-500 hover:text-violet-700 hover:bg-violet-500/5 transition-all ${s.chapters.length === 0 ? "[grid-column:1/-1] min-h-[96px]" : ""}`}>
                   <span className="w-[38px] h-[38px] rounded-full f3d-pill flex items-center justify-center text-xl">＋</span>
@@ -197,6 +278,8 @@ export default function Library({ go }) {
         </div>
       )}
       {modal && <LibraryModal modal={modal} close={() => setModal(null)} mutate={mutate} library={library} />}
+      {hist && <HistoryModal hist={hist} go={go}
+        close={() => setHist(null)} refresh={() => setTick((t) => t + 1)} />}
       {dsModal && (
         <Modal title={`“${dsModal.title}” needs questions`} okText="Cancel" onClose={() => setDsModal(null)}
           onOk={() => setDsModal(null)}>
@@ -239,6 +322,47 @@ export default function Library({ go }) {
   );
 }
 
+function HistoryModal({ hist, go, close, refresh }) {
+  const { showToast } = useVertex();
+  const [list, setList] = useState(() => chapterAttempts(hist.chapterId));
+  const reload = () => { setList(chapterAttempts(hist.chapterId)); refresh(); };
+  return (
+    <Modal title={`History — ${hist.title}`} okText="Done" onClose={close} onOk={close}>
+      <div className="mt-3 space-y-2.5 max-h-[50vh] overflow-y-auto pr-1">
+        {list.length === 0 && (
+          <p className="text-sm text-[var(--v-muted)] text-center py-6">No attempts yet.</p>
+        )}
+        {list.map((a) => {
+          const r = toRecord(a);
+          return (
+            <div key={a.id} className="rounded-2xl border border-[var(--v-line)] bg-[var(--v-bg)] p-3.5">
+              <div className="flex items-center gap-2 text-sm">
+                <b className="text-[15px]">{r.percentage}</b>
+                <span className={`text-[11px] font-bold rounded-full px-2.5 py-0.5 ${r.status === "completed" ? "bg-emerald-50 text-emerald-600 border border-emerald-200" : "bg-[#fff4e8] text-[#c2570b] border border-[#ffd9b8]"}`}>
+                  {r.status === "completed" ? "Completed" : "In progress"}
+                </span>
+                <span className="ml-auto text-xs text-[var(--v-muted)]">{fmtDate(r.updatedAt)}</span>
+              </div>
+              <div className="mt-1 text-xs text-[var(--v-muted)]">
+                {r.answeredCount} / {r.totalQuestions} answered · Score {r.score} · {Math.round(r.timeSpentSec / 60)}m {String(Math.round(r.timeSpentSec % 60)).padStart(2, "0")}s
+              </div>
+              <div className="mt-2.5 flex gap-2">
+                {r.status === "in_progress"
+                  ? <button onClick={() => { close(); go("player", { attemptId: a.id }); }}
+                    className="f3d-btn f3d-btn-violet rounded-lg px-3.5 py-1.5 text-xs font-bold">Resume →</button>
+                  : <button onClick={() => { close(); go("result", { attemptId: a.id }); }}
+                    className="f3d-btn f3d-btn-violet rounded-lg px-3.5 py-1.5 text-xs font-bold">View result →</button>}
+                <button onClick={() => { deleteAttempt(a.id); reload(); showToast("Attempt deleted."); }}
+                  className="rounded-lg px-3.5 py-1.5 text-xs font-bold text-red-600 border border-red-200">Delete</button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </Modal>
+  );
+}
+
 function LibraryModal({ modal, close, mutate, library }) {
   const { showToast } = useVertex();
   const existing = modal.subId ? library.subjects.find((s) => s.id === modal.subId) : null;
@@ -246,7 +370,6 @@ function LibraryModal({ modal, close, mutate, library }) {
   const [desc, setDesc] = useState(existing && modal.mode !== "chapter" ? existing.desc ?? "" : "");
   const [tint, setTint] = useState(existing?.tint ?? "pink");
   const [subId, setSubId] = useState(modal.subId ?? library.subjects[0]?.id);
-  const [total, setTotal] = useState(50);
 
   if (modal.mode === "delete" && existing) {
     return (
@@ -264,9 +387,9 @@ function LibraryModal({ modal, close, mutate, library }) {
         if (!title.trim() || !subId) return;
         mutate((d) => {
           const s = d.subjects.find((x) => x.id === subId);
-          s?.chapters.push({ id: uid("ch"), title: title.trim(), status: "not", pct: 0, answered: 0, total: Math.max(0, total | 0), score: 0, tint });
+          s?.chapters.push({ id: uid("ch"), title: title.trim(), tint });
         });
-        close(); showToast("Chapter added");
+        close(); showToast("Chapter added — link a dataset to start testing.");
       }}>
         <Field label="Subject">
           <select value={subId} onChange={(e) => setSubId(e.target.value)}
@@ -275,7 +398,7 @@ function LibraryModal({ modal, close, mutate, library }) {
             }</select>
         </Field>
         <Field label="Chapter name"><TextInput value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Tenses" maxLength={60} /></Field>
-        <Field label="Questions"><TextInput type="number" min={0} max={1000} value={total} onChange={(e) => setTotal(+e.target.value)} /></Field>
+        <p className="mt-3 text-xs text-[var(--v-muted)]">Question count comes from the dataset you link next.</p>
         <TintRow tint={tint} setTint={setTint} />
       </Modal>
     );

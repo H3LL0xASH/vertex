@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { librarySeed, attemptsSeed } from "./data/seed.js";
+import { librarySeed } from "./data/seed.js";
 import { normalizeExam, validateExam } from "./engine/examFormat.js";
 import { createAttempt, latestAttemptForChapter, getAttempt } from "./engine/attempts.js";
 
@@ -116,7 +116,6 @@ export function VertexProvider({ children }) {
     toggleTheme: () => setTheme((t) => (t === "dark" ? "light" : "dark")),
     library, setLibrary,
     resetLibrary: () => setLibrary(structuredClone(librarySeed)),
-    attempts: attemptsSeed,
     toast, toastKey, showToast,
     linkDatasetToChapter, launchChapter, startAttempt, getAttempt,
   }), [user, authed, login, logout, theme, library, toast, toastKey, showToast,

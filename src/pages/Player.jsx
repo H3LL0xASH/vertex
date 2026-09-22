@@ -227,6 +227,9 @@ export default function Player({ attemptId, initialReview, go }) {
                     <span className="text-[11.5px] font-extrabold tracking-wide px-3.5 py-1.5 rounded-full bg-violet-100 text-violet-700 border border-violet-200">
                       {(q.topic_title || "General").toUpperCase()}
                     </span>
+                    <span className="text-[11.5px] font-bold px-3.5 py-1.5 rounded-full bg-[var(--v-bg)] text-[var(--v-muted)] border border-[var(--v-line)]" title="Marking scheme">
+                      +{attempt.markPerCorrect} / −{attempt.negativeMarking}
+                    </span>
                     <b className="ml-auto text-[14px]">Question {pos >= 0 ? pos + 1 : "–"} of {ex.indices.length}</b>
                     <span className="flex gap-2">
                       <button onClick={() => ex.step(-1)} style={{ "--neon": "#8b5cf6" }} className="neon w-10 h-10 rounded-xl f3d-pill font-extrabold">‹</button>
