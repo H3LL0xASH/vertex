@@ -20,6 +20,10 @@ const P = {
   cal: <><rect x="4" y="5" width="16" height="16" rx="2" /><path d="M8 3v4M16 3v4M4 10h16" /></>,
   search: <><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></>,
   down: <path d="M12 4v12m0 0 4-4m-4 4-4-4" />,
+  x: <path d="M6 6l12 12M18 6 6 18" />,
+  flag: <><path d="M5 21V4" /><path d="M5 4h12l-2.5 4L17 12H5" /></>,
+  star: <path d="m12 3 2.7 5.8 6.3.8-4.6 4.3 1.2 6.1-5.6-3.1-5.6 3.1 1.2-6.1L3 9.6l6.3-.8L12 3Z" />,
+  pie: <><path d="M12 3v9h9" /><circle cx="12" cy="12" r="8" /></>,
 };
 export const Ico = ({ n, s = 20, fill = false }) => (
   <svg width={s} height={s} viewBox="0 0 24 24" fill={fill ? "currentColor" : "none"}

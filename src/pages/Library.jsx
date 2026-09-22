@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import { useVertex } from "../store.jsx";
 import { uid, TINT_GRAD } from "../data/seed.js";
+import { sampleProfitLoss } from "../data/sampleProfitLoss.js";
 import { Card, Ico, Orb, Modal, Field, TextInput } from "../components/ui.jsx";
 import { Sidebar, Topbar, BgBlobs } from "../components/Shell.jsx";
 
@@ -10,12 +11,31 @@ const DOC_BG = { pink: "#fbdfe2", blue: "#dde8fa", green: "#d9f2e2", orange: "#f
 const NEON = { pink: "#f43f5e", blue: "#3b82f6", green: "#22c55e", orange: "#f97316", purple: "#8b5cf6", teal: "#14b8a6" };
 
 export default function Library({ go }) {
-  const { library, setLibrary, resetLibrary, showToast } = useVertex();
+  const { library, setLibrary, resetLibrary, showToast, linkDatasetToChapter, launchChapter } = useVertex();
   const [q, setQ] = useState("");
   const [collapsed, setCollapsed] = useState({});
   const [menu, setMenu] = useState(null); // {x,y,subId}
   const [modal, setModal] = useState(null); // {mode, subId, ...}
+  const [dsModal, setDsModal] = useState(null); // {subjectId, chapterId, title}
   const fileRef = useRef(null);
+  const dsFileRef = useRef(null);
+
+  /** Chapter → player. Chapters carry their own dataset JSON (D:\WEB format);
+      without one we ask for an upload or the bundled sample set. */
+  const openChapter = (subjectId, ch) => {
+    const r = launchChapter(subjectId, ch.id);
+    if (r.attemptId) go("player", { attemptId: r.attemptId });
+    else setDsModal({ subjectId, chapterId: ch.id, title: ch.title });
+  };
+
+  const linkAndLaunch = (subjectId, chapterId, rawJson, label) => {
+    const r = linkDatasetToChapter(subjectId, chapterId, rawJson);
+    if (r.error) { showToast("Invalid dataset — " + r.error); return; }
+    setDsModal(null);
+    showToast(`“${label}” linked (${r.count} questions).`);
+    const launched = launchChapter(subjectId, chapterId);
+    if (launched.attemptId) go("player", { attemptId: launched.attemptId });
+  };
 
   const shown = useMemo(() => {
     const query = q.trim().toLowerCase();
@@ -138,7 +158,7 @@ export default function Library({ go }) {
             {!collapsed[s.id] && (
               <div className="mt-4 grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill,minmax(250px,1fr))" }}>
                 {s.chapters.map((c) => (
-                  <div key={c.id} onClick={() => showToast(`Starting “${c.title}”… — test player is next`)}
+                  <div key={c.id} onClick={() => openChapter(s.id, c)}
                     className={`neon cht cht-${c.tint || "blue"} rounded-2xl p-4 flex gap-3 items-start shadow-[0_8px_20px_rgba(35,45,80,.07)] hover:-translate-y-[3px] transition-transform cursor-pointer`}
                     style={{ "--neon": NEON[c.tint] ?? NEON.blue }}>
                     <span className="w-[52px] h-[52px] rounded-[14px] shrink-0 flex items-center justify-center shadow-[inset_2px_3px_6px_rgba(255,255,255,.6),0_6px_14px_rgba(0,0,0,.1)]"
@@ -154,7 +174,7 @@ export default function Library({ go }) {
                         {c.status === "progress" ? `${c.answered} / ${c.total} answered` : `0 / ${c.total} questions`} · Score {c.score}
                       </div>
                     </div>
-                    <button onClick={() => showToast(`Starting “${c.title}”… — test player is next`)}
+                    <button onClick={(e) => { e.stopPropagation(); openChapter(s.id, c); }}
                       className="ml-auto self-center w-[38px] h-[38px] rounded-full shrink-0 bg-white/90 border border-black/5 flex items-center justify-center text-[#3b4370] shadow-[0_6px_14px_rgba(35,45,80,.12)] hover:scale-110 transition-transform">→</button>
                   </div>
                 ))}
@@ -178,6 +198,44 @@ export default function Library({ go }) {
         </div>
       )}
       {modal && <LibraryModal modal={modal} close={() => setModal(null)} mutate={mutate} library={library} />}
+      {dsModal && (
+        <Modal title={`“${dsModal.title}” needs questions`} okText="Cancel" onClose={() => setDsModal(null)}
+          onOk={() => setDsModal(null)}>
+          <p className="mt-3 text-sm text-[var(--v-muted)]">
+            Link a dataset in the Vertex exam JSON format — upload your own file or try the bundled sample set.
+          </p>
+          <div className="mt-4 grid gap-2.5">
+            <button onClick={() => dsFileRef.current?.click()} style={{ "--neon": "#8b5cf6" }}
+              className="neon f3d rounded-2xl p-4 flex items-center gap-3 text-left">
+              <span className="f3d-orb rounded-xl" style={{ width: 42, height: 42, background: "linear-gradient(180deg,#8db4f0,#2f6fd0)", color: "#fff" }}>
+                <Ico n="upload" s={22} />
+              </span>
+              <span><b className="text-sm block">Upload JSON file</b>
+                <span className="text-xs text-[var(--v-muted)]">Same format as the Upload page</span></span>
+            </button>
+            <button onClick={() => linkAndLaunch(dsModal.subjectId, dsModal.chapterId, sampleProfitLoss, "Profit & Loss sample")} style={{ "--neon": "#22c55e" }}
+              className="neon f3d rounded-2xl p-4 flex items-center gap-3 text-left">
+              <span className="f3d-orb rounded-xl" style={{ width: 42, height: 42, background: "linear-gradient(180deg,#8fe3b6,#34b87a)", color: "#fff" }}>
+                <Ico n="doc" s={22} />
+              </span>
+              <span><b className="text-sm block">Load sample: Profit &amp; Loss</b>
+                <span className="text-xs text-[var(--v-muted)]">12 questions · Quick Revision / Set 1 / Set 2</span></span>
+            </button>
+          </div>
+          <input ref={dsFileRef} type="file" accept="application/json,.json" hidden onChange={(e) => {
+            const f = e.target.files[0];
+            e.target.value = "";
+            if (!f) return;
+            const r = new FileReader();
+            r.onload = () => {
+              try {
+                linkAndLaunch(dsModal.subjectId, dsModal.chapterId, JSON.parse(r.result), f.name);
+              } catch { showToast("That file is not valid JSON."); }
+            };
+            r.readAsText(f);
+          }} />
+        </Modal>
+      )}
     </div>
   );
 }

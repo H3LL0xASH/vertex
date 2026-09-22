@@ -118,7 +118,7 @@ export default function Overview({ go }) {
                 <div className="text-[12.5px] text-[var(--v-muted)] mt-1">0 / 86 answered · Score 0 · Sep 22, 05:05 PM</div></div>
               <div className="ml-auto flex items-center gap-2.5">
                 <span className="bg-[#fff4e8] border border-[#ffd9b8] text-[#b45309] text-xs font-bold px-3.5 py-2 rounded-full">In progress</span>
-                <button onClick={() => showToast("Resuming Mixture & Alligation…")}
+                <button onClick={() => { go("library"); showToast("Pick a chapter in Library to start or resume its test."); }}
                   className="f3d-btn f3d-btn-violet px-[22px] py-3 rounded-full text-[13.5px] font-bold flex gap-2 items-center">Resume →</button>
               </div>
             </div>
