@@ -77,7 +77,7 @@ export default function Result({ attemptId, go }) {
           {/* header with trophy art */}
           <div className="relative px-7 pt-6 pb-5 overflow-hidden"
             style={{ background: "linear-gradient(120deg,#4c1d95,#6d28d9 55%,#8b5cf6)" }}>
-            <div className="absolute right-[8%] top-0 bottom-0 w-[380px] pointer-events-none" aria-hidden>
+            <div className="absolute right-[8%] top-0 bottom-0 w-[380px] pointer-events-none max-md:hidden" aria-hidden>
               <div className="f3d-sphere w-[64px] h-[64px] left-[10px] top-[14px]" />
               <div className="f3d-sphere w-[44px] h-[44px] right-[40px] top-[44px]" style={{ animationDelay: "1.2s" }} />
               <div className="absolute right-[120px] top-[6px] w-[120px] h-[120px] rounded-full flex items-center justify-center text-violet-200"

@@ -62,13 +62,13 @@ export function Sidebar({ tab, go }) {
 export function Topbar({ searchPh, search, setSearch, onLibrary }) {
   const { user, theme, toggleTheme, logout, showToast } = useVertex();
   return (
-    <div className="flex items-center gap-3">
-      <div className="f3d-pill neon-focus flex-1 max-w-[640px] h-[52px] flex items-center gap-2.5 px-5 text-[var(--v-muted)]" style={{ "--neon": "#8b5cf6" }}>
+    <div className="flex items-center gap-3 flex-wrap">
+      <div className="f3d-pill neon-focus flex-1 min-w-[200px] max-w-[640px] h-[52px] flex items-center gap-2.5 px-5 text-[var(--v-muted)]" style={{ "--neon": "#8b5cf6" }}>
         <Ico n="search" s={20} />
         <input value={search} onChange={(e) => setSearch(e.target.value)}
           placeholder={searchPh}
           className="border-0 outline-0 bg-transparent flex-1 text-[14px] text-[var(--v-ink)] min-w-0" />
-        <kbd className="font-sans text-[11.5px] font-bold text-[var(--v-muted)] bg-[var(--v-bg)] border border-[var(--v-line)] rounded-lg px-2 py-1 whitespace-nowrap">⌘ K</kbd>
+        <kbd className="max-sm:hidden font-sans text-[11.5px] font-bold text-[var(--v-muted)] bg-[var(--v-bg)] border border-[var(--v-line)] rounded-lg px-2 py-1 whitespace-nowrap">⌘ K</kbd>
       </div>
       <div className="ml-auto flex items-center gap-2.5">
         <button onClick={() => showToast("🔥 1-day streak — solve a test today to keep it alive!")} style={{ "--neon": "#f97316" }}
@@ -87,8 +87,8 @@ export function Topbar({ searchPh, search, setSearch, onLibrary }) {
               style={{ background: "linear-gradient(180deg,#ff6b6b,#d81b28)", boxShadow: "inset 2px 3px 5px rgba(255,255,255,.45)" }}>
               {user.charAt(0).toUpperCase()}
             </span>
-            <span><b className="text-sm block leading-tight">{user}</b><small className="text-[10.5px] tracking-wider text-violet-600 font-extrabold">BRONZE</small></span>
-            <span className="text-xs text-[var(--v-muted)]">▼</span>
+            <span className="max-[480px]:hidden"><b className="text-sm block leading-tight">{user}</b><small className="text-[10.5px] tracking-wider text-violet-600 font-extrabold">BRONZE</small></span>
+            <span className="max-[480px]:hidden text-xs text-[var(--v-muted)]">▼</span>
           </div>
           <div className="absolute right-0 top-[60px] f3d min-w-[170px] overflow-hidden hidden group-hover:block z-50 !rounded-[14px]">
             <button onClick={logout} className="w-full px-4 py-3 text-left text-[13.5px] font-semibold hover:bg-black/5">⎋ Logout</button>
@@ -96,6 +96,27 @@ export function Topbar({ searchPh, search, setSearch, onLibrary }) {
         </div>
       </div>
     </div>
+  );
+}
+
+/* bottom nav for <lg screens (sidebar is hidden there) */
+export function MobileNav({ tab, go }) {
+  const items = [
+    { k: "overview", t: "Home", icon: "home" },
+    { k: "library", t: "Library", icon: "book" },
+    { k: "analytics", t: "Stats", icon: "chart" },
+    { k: "upload", t: "Upload", icon: "upload" },
+  ];
+  return (
+    <nav className="mobilenav f3d items-center justify-around" aria-label="Primary">
+      {items.map((n) => (
+        <button key={n.k} onClick={() => go(n.k)} style={{ "--neon": "#8b5cf6" }}
+          className={`neon flex flex-col items-center gap-1 px-4 py-2 rounded-2xl text-[11px] font-bold ${tab === n.k ? "text-violet-600" : "text-[var(--v-muted)]"}`}>
+          <Ico n={n.icon} s={22} />
+          {n.t}
+        </button>
+      ))}
+    </nav>
   );
 }
 

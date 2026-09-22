@@ -88,6 +88,29 @@ export function VertexProvider({ children }) {
     return { attemptId: attempt.id };
   }, []);
 
+  /* Synchronous link + launch (avoids stale localStorage reads between
+     setState and persist effects). */
+  const startAttempt = useCallback((subjectId, chapterId, rawJson) => {
+    const check = validateExam(rawJson);
+    if (!check.valid) return { error: check.errors[0] };
+    const exam = normalizeExam(rawJson);
+    setLibrary((prev) => {
+      const d = structuredClone(prev);
+      const sub = d.subjects.find((s) => s.id === subjectId);
+      const ch = sub?.chapters.find((c) => c.id === chapterId);
+      if (ch) {
+        ch.dataset = rawJson;
+        ch.total = exam.questions.length;
+        if (!ch.tint) ch.tint = "blue";
+      }
+      return d;
+    });
+    const live = latestAttemptForChapter(chapterId);
+    if (live && live.status === "in_progress") return { attemptId: live.id, resumed: true, count: exam.questions.length };
+    const attempt = createAttempt(exam, { chapterId, subjectId });
+    return { attemptId: attempt.id, count: exam.questions.length };
+  }, []);
+
   const value = useMemo(() => ({
     user, authed, login, logout, theme,
     toggleTheme: () => setTheme((t) => (t === "dark" ? "light" : "dark")),
@@ -95,9 +118,9 @@ export function VertexProvider({ children }) {
     resetLibrary: () => setLibrary(structuredClone(librarySeed)),
     attempts: attemptsSeed,
     toast, toastKey, showToast,
-    linkDatasetToChapter, launchChapter, getAttempt,
+    linkDatasetToChapter, launchChapter, startAttempt, getAttempt,
   }), [user, authed, login, logout, theme, library, toast, toastKey, showToast,
-    linkDatasetToChapter, launchChapter]);
+    linkDatasetToChapter, launchChapter, startAttempt]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

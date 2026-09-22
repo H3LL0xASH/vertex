@@ -48,7 +48,7 @@ export default function Upload({ go }) {
             onDragLeave={() => setDrag(false)}
             onDrop={(e) => { e.preventDefault(); setDrag(false); ingest(e.dataTransfer.files[0]); }}
             onClick={() => fileRef.current?.click()}
-            className={`neon mt-5 rounded-3xl border-[2px] border-dashed p-14 text-center cursor-pointer transition-all ${drag ? "border-violet-500 bg-violet-500/5 scale-[1.01]" : "border-[#c9d2e4]"}`}>
+            className={`neon mt-5 rounded-3xl border-[2px] border-dashed p-8 sm:p-14 text-center cursor-pointer transition-all ${drag ? "border-violet-500 bg-violet-500/5 scale-[1.01]" : "border-[#c9d2e4]"}`}>
             <span className="f3d-orb rounded-full mx-auto" style={{ width: 72, height: 72, background: "linear-gradient(180deg,#a78bfa,#6d28d9)", color: "#fff" }}>
               <Ico n="upload" s={32} />
             </span>

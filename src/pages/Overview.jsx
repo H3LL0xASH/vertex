@@ -22,7 +22,7 @@ export default function Overview({ go }) {
 
         {/* hero */}
         <Card float className="mt-3.5 p-7 flex items-center min-h-[132px] overflow-hidden">
-          <div className="absolute right-[8%] top-0 bottom-0 w-[46%] pointer-events-none overflow-hidden" aria-hidden>
+          <div className="absolute right-[8%] top-0 bottom-0 w-[46%] pointer-events-none overflow-hidden max-md:hidden" aria-hidden>
             <div className="absolute w-[130%] h-[220px] right-[-30%] top-[-40px] rounded-full rotate-[-8deg] bg-indigo-200/50" />
             <div className="f3d-sphere w-[130px] h-[130px] right-[38%] top-[-20px]" />
             <div className="f3d-sphere w-[54px] h-[54px] right-[12%] bottom-[10px]" style={{ animationDelay: "2s" }} />

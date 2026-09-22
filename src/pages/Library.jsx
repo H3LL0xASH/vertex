@@ -11,7 +11,7 @@ const DOC_BG = { pink: "#fbdfe2", blue: "#dde8fa", green: "#d9f2e2", orange: "#f
 const NEON = { pink: "#f43f5e", blue: "#3b82f6", green: "#22c55e", orange: "#f97316", purple: "#8b5cf6", teal: "#14b8a6" };
 
 export default function Library({ go }) {
-  const { library, setLibrary, resetLibrary, showToast, linkDatasetToChapter, launchChapter } = useVertex();
+  const { library, setLibrary, resetLibrary, showToast, launchChapter, startAttempt } = useVertex();
   const [q, setQ] = useState("");
   const [collapsed, setCollapsed] = useState({});
   const [menu, setMenu] = useState(null); // {x,y,subId}
@@ -29,12 +29,11 @@ export default function Library({ go }) {
   };
 
   const linkAndLaunch = (subjectId, chapterId, rawJson, label) => {
-    const r = linkDatasetToChapter(subjectId, chapterId, rawJson);
+    const r = startAttempt(subjectId, chapterId, rawJson);
     if (r.error) { showToast("Invalid dataset — " + r.error); return; }
     setDsModal(null);
     showToast(`“${label}” linked (${r.count} questions).`);
-    const launched = launchChapter(subjectId, chapterId);
-    if (launched.attemptId) go("player", { attemptId: launched.attemptId });
+    go("player", { attemptId: r.attemptId });
   };
 
   const shown = useMemo(() => {
@@ -137,7 +136,7 @@ export default function Library({ go }) {
         )}
         {shown.map((s, si) => (
           <Card key={s.id} float delay={si * 0.5} className="mt-3.5 p-5">
-            <div className="flex items-start gap-3.5">
+            <div className="flex items-start gap-3.5 flex-wrap">
               <Orb tint={s.tint} icon={s.icon} />
               <div>
                 <h2 className="text-xl font-extrabold">{s.title}

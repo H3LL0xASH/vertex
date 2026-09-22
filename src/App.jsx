@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { VertexProvider } from "./store.jsx";
 import { ToastHost } from "./components/ui.jsx";
+import { MobileNav } from "./components/Shell.jsx";
 import Login from "./pages/Login.jsx";
 import Overview from "./pages/Overview.jsx";
 import Library from "./pages/Library.jsx";
@@ -35,8 +36,9 @@ function Shell() {
 
   if (!authed) return (<><Login /><ToastHost /></>);
 
+  const withNav = ["overview", "library", "analytics", "upload"].includes(tab);
   return (
-    <>
+    <div className={withNav ? "pb-24 lg:pb-0" : ""}>
       {tab === "overview" && <Overview go={go} />}
       {tab === "library" && <Library go={go} />}
       {tab === "analytics" && <Analytics go={go} />}
@@ -45,8 +47,9 @@ function Shell() {
         <Player attemptId={payload.attemptId} initialReview={payload.review || null} go={go} />
       )}
       {tab === "result" && <Result attemptId={payload.attemptId} go={go} />}
+      {withNav && <MobileNav tab={tab} go={setTab} />}
       <ToastHost />
-    </>
+    </div>
   );
 }
 
