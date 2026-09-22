@@ -47,7 +47,7 @@ export default function Login() {
         <div className="f3d-sphere w-[108px] h-[108px] left-[6.5%] bottom-[13.5%]" style={{ animationDelay: "1.6s" }} />
         <div className="relative z-[6] text-center -translate-y-[7%] pr-[7%]">
           <h1 className="f3d-text text-[clamp(76px,8.4vw,136px)] leading-none">vertex</h1>
-          <p className="mt-5 text-[12.5px] tracking-[0.6em] indent-[0.6em] font-semibold text-[#7c6a8b]">BEYOND POSSIBILITIES</p>
+          <p className="mt-5 text-[12.5px] tracking-[0.6em] indent-[0.6em] font-semibold text-[#6e5e81]">BEYOND POSSIBILITIES</p>
           <div className="mt-[26px] mx-auto w-[62%] h-5 rounded-full blur-[14px] bg-[rgba(90,85,120,.25)]" />
         </div>
         {/* inflated seam */}
@@ -86,7 +86,7 @@ export default function Login() {
                 className={`login-chev w-[26px] h-[26px] transition-transform ${open ? "rotate-180" : ""}`}><path d="m6 9 6 6 6-6" /></svg>
             </div>
             {open && (
-              <div className="f3d absolute left-2 right-2 top-[74px] !rounded-[18px] overflow-hidden z-20 text-left page-in">
+              <div className="f3d pos-absolute absolute left-2 right-2 top-[74px] !rounded-[18px] overflow-hidden z-20 text-left page-in">
                 {NAMES.map((n) => (
                   <button key={n} onClick={() => { setName(n); setOpen(false); }}
                     className="w-full flex items-center gap-3 px-[18px] py-[13px] text-[15px] font-medium hover:bg-violet-50">

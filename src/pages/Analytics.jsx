@@ -23,7 +23,6 @@ const RANGES = [
 export default function Analytics({ go }) {
   const { showToast, library, startAttempt: launch } = useVertex();
   const [tab, setTab] = useState("trends");
-  const [search, setSearch] = useState("");
   const [range, setRange] = useState(RANGES[0]);
   const [showReco, setShowReco] = useState(false);
   const [rangeOpen, setRangeOpen] = useState(false);
@@ -84,12 +83,12 @@ export default function Analytics({ go }) {
     <div className="flex min-h-screen">
       <BgBlobs />
       <Sidebar tab="analytics" go={go} />
-      <main className="flex-1 min-w-0 p-4 px-[22px] pb-10 page-in">
-        <Topbar searchPh="Search for subjects, tests, or commands..." search={search} setSearch={setSearch} onLibrary={() => go("library")} />
+      <main className="flex-1 min-w-0 p-3 sm:p-4 sm:px-[22px] pb-10 page-in">
+        <Topbar hideSearch onLibrary={() => go("library")} />
 
         {/* HERO */}
         <div className="mt-3.5 relative">
-          <Card float className="px-[30px] py-7 min-h-[150px] overflow-hidden">
+          <Card float className="px-5 sm:px-[30px] py-5 sm:py-7 min-h-[150px] overflow-hidden">
             <div className="absolute right-[6%] top-0 bottom-0 w-[380px] pointer-events-none max-lg:hidden" aria-hidden>
               <div className="f3d-sphere w-[110px] h-[110px] left-[10px] top-[6px]" />
               <div className="f3d-sphere w-[72px] h-[72px] right-[30px] top-[30px]" style={{ animationDelay: "1.4s", background: "radial-gradient(circle at 32% 28%,#fff 0%,#eef1f7 30%,#c3cede 65%,#e8eef7 90%)" }} />
@@ -117,7 +116,7 @@ export default function Analytics({ go }) {
                   <Ico n="cal" s={16} /> {range.label} <Ico n="chevD" s={13} />
                 </button>
                 {rangeOpen && (
-                  <div className="f3d absolute right-0 top-[54px] z-30 min-w-[170px] p-1.5 !rounded-[14px]">
+                  <div className="f3d pos-absolute absolute right-0 top-[54px] z-30 min-w-[170px] p-1.5 !rounded-[14px]">
                     {RANGES.map((r) => (
                       <button key={r.label} onClick={() => { setRange(r); setRangeOpen(false); }}
                         className={`block w-full text-left px-3 py-2.5 rounded-[9px] text-[13px] font-semibold hover:bg-black/5 ${r.label === range.label ? "text-violet-600" : ""}`}>
@@ -250,7 +249,7 @@ export default function Analytics({ go }) {
                 <div key={s.id}>
                   <div className="flex items-center gap-2.5">
                     <Orb tint={s.tint} icon={s.icon} size={38} radius={11} />
-                    <b>{s.title}</b>
+                    <b className="truncate min-w-0">{s.title}</b>
                     <span className="ml-auto text-[13px] text-[var(--v-muted)]">
                       {s.avg === null ? "No attempts yet" : `Avg best ${s.avg.toFixed(1)}%`}</span>
                   </div>

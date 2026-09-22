@@ -155,7 +155,7 @@ export const ScoreLine = ({ data, max = 10, height = 210, tip = 3, tipLabel = "B
               <g>
                 <rect x={x - 8} y={y - 62} width="86" height="40" rx="12" fill="#fff" stroke="#e6eaf3" />
                 <text x={x + 22} y={y - 45} fontSize="15" fontWeight="800" fill="#131a2b">{data[i].v}</text>
-                <text x={x + 22} y={y - 32} fontSize="9" fill="#8b91a7">{tipLabel}</text>
+                <text x={x + 22} y={y - 32} fontSize="9" fill="#6d7391">{tipLabel}</text>
               </g>
             )}
             <circle cx={x} cy={y} r={i === tip ? 6 : 4.5} fill={i === tip ? "#fff" : "#6d28d9"}

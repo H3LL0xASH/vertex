@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import { useVertex } from "../store.jsx";
 import { Ico } from "./ui.jsx";
 
@@ -11,27 +12,38 @@ const NAV = [
 export function Sidebar({ tab, go }) {
   const { navCollapsed, toggleNav } = useVertex();
   const rail = navCollapsed;
+  // blur is the jank source: run the width glide on a cheap solid layer,
+  // then restore the glass finish the moment it lands.
+  const [gliding, setGliding] = useState(false);
+  const glideTimer = useRef(null);
+  useEffect(() => () => { if (glideTimer.current) clearTimeout(glideTimer.current); }, []);
+  const handleToggle = () => {
+    toggleNav();
+    setGliding(true);
+    if (glideTimer.current) clearTimeout(glideTimer.current);
+    glideTimer.current = setTimeout(() => setGliding(false), 380);
+  };
   return (
-    <aside className={`${rail ? "w-[78px] px-2.5 items-center" : "w-[248px] px-4"} shrink-0 max-lg:hidden border-r border-[var(--v-line)] flex flex-col pt-[22px] pb-4 sticky top-0 h-screen overflow-hidden backdrop-blur-xl transition-all duration-300 relative`}
-      style={{ background: "color-mix(in srgb, var(--v-card-hi) 78%, transparent)" }}>
-      {/* slim edge toggle — hugs the border, blends with the UI */}
-      <button onClick={toggleNav} title={rail ? "Expand sidebar" : "Collapse to icons"} style={{ "--neon": "#8b5cf6" }}
-        className="neon absolute -right-[11px] top-[26px] z-20 w-[22px] h-[46px] rounded-full f3d-pill flex items-center justify-center text-violet-600">
-        <Ico n={rail ? "chevR" : "chevL"} s={13} />
-      </button>
-      <div className={`flex items-center gap-2.5 px-2 ${rail ? "!px-0 justify-center" : ""}`}>
-        <span className="f3d-orb rounded-[14px] shrink-0" style={{ width: 44, height: 44, background: "linear-gradient(180deg,#8b9ff0,#5b63e8)" }}>
+    <aside className={`${rail ? "w-[78px] px-2.5" : "w-[248px] px-4"} shrink-0 max-lg:hidden border-r border-[var(--v-line)] flex flex-col pt-[22px] pb-4 sticky top-0 h-screen overflow-hidden ${gliding ? "" : "backdrop-blur-xl"} transition-[width,padding] duration-[320ms] ease-[cubic-bezier(.32,.72,0,1)] relative`}
+      style={{
+        background: gliding ? "var(--v-card-hi)" : "color-mix(in srgb, var(--v-card-hi) 78%, transparent)",
+        willChange: gliding ? "width" : "auto",
+      }}>
+      {/* logo doubles as the collapse toggle */}
+      <button onClick={handleToggle} title={rail ? "Expand sidebar" : "Collapse to icons"}
+        className={`flex items-center gap-2.5 px-2 text-left rounded-2xl group/logo ${rail ? "!px-0 justify-center" : ""}`}>
+        <span className="f3d-orb rounded-[14px] shrink-0 transition-transform group-hover/logo:scale-105" style={{ width: 44, height: 44, background: "linear-gradient(180deg,#8b9ff0,#5b63e8)" }}>
           <span className="font-brand font-extrabold text-white text-[22px]">V</span>
         </span>
-        {!rail && (
-          <span className="overflow-hidden whitespace-nowrap">
-            <span className="font-brand font-extrabold text-[26px] tracking-tight block leading-none">vertex</span>
-            <span className="text-[9px] tracking-[0.4em] text-[var(--v-muted)] font-semibold">EXAM SIMULATOR</span>
-          </span>
-        )}
+        <span className={`overflow-hidden whitespace-nowrap transition-all duration-300 ease-out ${rail ? "max-w-0 opacity-0" : "max-w-[200px] opacity-100"}`}>
+          <span className="font-brand font-extrabold text-[26px] tracking-tight block leading-none">vertex</span>
+          <span className="text-[9px] tracking-[0.4em] text-[var(--v-muted)] font-semibold">EXAM SIMULATOR</span>
+        </span>
+      </button>
+      <div className="mt-7 mb-2.5 h-[14px] flex items-center overflow-hidden">
+        <span className={`text-[11px] tracking-[0.22em] text-[var(--v-muted)] font-bold whitespace-nowrap transition-all duration-300 ${rail ? "max-w-0 opacity-0" : "max-w-[200px] opacity-100"}`}>WORKSPACE</span>
+        <span className={`h-px bg-[var(--v-line)] transition-all duration-300 ${rail ? "w-10 opacity-100" : "w-0 opacity-0"}`} />
       </div>
-      {!rail && <div className="mt-7 mb-2.5 mx-2.5 text-[11px] tracking-[0.22em] text-[var(--v-muted)] font-bold">WORKSPACE</div>}
-      {rail && <div className="mt-7 mb-2.5 h-px w-10 bg-[var(--v-line)]" />}
       <nav className={`flex flex-col gap-2.5 w-full ${rail ? "mt-2" : ""}`}>
         {NAV.map((n) => (
           <button key={n.k} onClick={() => go(n.k)} title={rail ? `${n.t} — ${n.s}` : undefined} style={{ "--neon": "#8b5cf6" }}
@@ -42,17 +54,15 @@ export function Sidebar({ tab, go }) {
                 : { width: 38, height: 38, background: "linear-gradient(180deg,#fff,#eef1f7)", color: "#5b647c", border: "1px solid var(--v-line)" }}>
               <Ico n={n.icon} s={20} />
             </span>
-            {!rail && (
-              <span className="overflow-hidden whitespace-nowrap">
-                <span className={`text-[14.5px] font-bold ${tab === n.k ? "text-violet-700" : ""}`}>{n.t}</span>
-                <div className="text-xs text-[var(--v-muted)] mt-0.5">{n.s}</div>
-              </span>
-            )}
+            <span className={`overflow-hidden whitespace-nowrap transition-all duration-300 ease-out ${rail ? "max-w-0 opacity-0" : "max-w-[180px] opacity-100"}`}>
+              <span className={`text-[14.5px] font-bold ${tab === n.k ? "text-violet-700" : ""}`}>{n.t}</span>
+              <div className="text-xs text-[var(--v-muted)] mt-0.5">{n.s}</div>
+            </span>
           </button>
         ))}
       </nav>
       {rail ? (
-        <div className="mt-auto flex flex-col items-center gap-3">
+        <div className="mt-auto flex flex-col items-center gap-3 pop-in">
           <span className="f3d-orb rounded-full" style={{ width: 44, height: 44, background: "linear-gradient(180deg,#f9a8b0,#e56570)", color: "#fff" }}>
             <Ico n="arrowR" s={20} />
           </span>
@@ -67,7 +77,7 @@ export function Sidebar({ tab, go }) {
               style={{ background: "linear-gradient(180deg,#f6dee3,#f2b8c0)", boxShadow: "inset 6px 8px 16px rgba(255,255,255,.7)" }} />
             <div className="f3d-sphere w-[44px] h-[44px] left-[104px] top-[6px]" />
           </div>
-          <div className="f3d f3d-float p-4 flex items-center gap-2.5 text-[15px] leading-snug font-medium">
+          <div className="f3d f3d-float p-4 flex items-center gap-2.5 text-[15px] leading-snug font-medium pop-in">
             <span>Practice<br />smarter.<br />Go beyond.</span>
             <span className="ml-auto w-9 h-9 rounded-full f3d-pill flex items-center justify-center shrink-0 text-[var(--v-ink)]"><Ico n="arrowR" s={16} /></span>
           </div>
@@ -82,17 +92,19 @@ export function Sidebar({ tab, go }) {
   );
 }
 
-export function Topbar({ searchPh, search, setSearch, onLibrary }) {
+export function Topbar({ searchPh, search, setSearch, onLibrary, hideSearch }) {
   const { user, theme, toggleTheme, logout, showToast } = useVertex();
   return (
     <div className="flex items-center gap-3 flex-wrap">
-      <div className="f3d-pill neon-focus flex-1 min-w-[200px] max-w-[640px] h-[52px] flex items-center gap-2.5 px-5 text-[var(--v-muted)]" style={{ "--neon": "#8b5cf6" }}>
-        <Ico n="search" s={20} />
-        <input value={search} onChange={(e) => setSearch(e.target.value)}
-          placeholder={searchPh}
-          className="border-0 outline-0 bg-transparent flex-1 text-[14px] text-[var(--v-ink)] min-w-0" />
-        <kbd className="max-sm:hidden font-sans text-[11.5px] font-bold text-[var(--v-muted)] bg-[var(--v-bg)] border border-[var(--v-line)] rounded-lg px-2 py-1 whitespace-nowrap">⌘ K</kbd>
-      </div>
+      {!hideSearch && (
+        <div className="f3d-pill neon-focus flex-1 min-w-[200px] max-w-[640px] h-[52px] flex items-center gap-2.5 px-5 text-[var(--v-muted)]" style={{ "--neon": "#8b5cf6" }}>
+          <Ico n="search" s={20} />
+          <input value={search} onChange={(e) => setSearch(e.target.value)}
+            placeholder={searchPh}
+            className="border-0 outline-0 bg-transparent flex-1 text-[14px] text-[var(--v-ink)] min-w-0" />
+          <kbd className="max-sm:hidden font-sans text-[11.5px] font-bold text-[var(--v-muted)] bg-[var(--v-bg)] border border-[var(--v-line)] rounded-lg px-2 py-1 whitespace-nowrap">⌘ K</kbd>
+        </div>
+      )}
       <div className="ml-auto flex items-center gap-2.5">
         <button onClick={() => showToast("🔥 1-day streak — solve a test today to keep it alive!")} style={{ "--neon": "#f97316" }}
           className="neon h-[46px] px-[18px] rounded-full bg-[#fff4e8] border border-[#ffd9b8] text-[#c2570b] flex items-center gap-2 text-[13.5px] font-bold shadow-[0_6px_18px_rgba(35,45,80,.1)] hover:-translate-y-[2px] transition-transform">🔥 1 day</button>
@@ -113,7 +125,7 @@ export function Topbar({ searchPh, search, setSearch, onLibrary }) {
             <span className="max-[480px]:hidden"><b className="text-sm block leading-tight">{user}</b><small className="text-[10.5px] tracking-wider text-violet-600 font-extrabold">BRONZE</small></span>
             <span className="max-[480px]:hidden text-[var(--v-muted)] flex"><Ico n="chevD" s={12} /></span>
           </div>
-          <div className="absolute right-0 top-[60px] f3d pop-in min-w-[170px] overflow-hidden hidden group-hover:block z-50 !rounded-[14px]">
+          <div className="absolute pos-absolute right-0 top-[60px] f3d pop-in min-w-[170px] overflow-hidden hidden group-hover:block z-50 !rounded-[14px]">
             <button onClick={logout} className="w-full px-4 py-3 text-left text-[13.5px] font-semibold hover:bg-black/5 flex items-center gap-2">
               <Ico n="logout" s={16} /> Logout</button>
           </div>

@@ -31,7 +31,7 @@ export default function Library({ go }) {
   const rowRefs = useRef({});
   const [menu, setMenu] = useState(null); // {kind:'sub'|'ch', subId, chId, rect:{bottom,right}}
   const [modal, setModal] = useState(null); // {mode, subId, chId, ...}
-  const [rowAt, setRowAt] = useState({}); // subId -> {left, right} edge-arrow visibility
+  const [rowAt, setRowAt] = useState({}); // subId -> {left, right} edge-blend state
   const checkRow = (subId) => {
     const el = rowRefs.current[subId];
     if (!el) return;
@@ -80,11 +80,7 @@ export default function Library({ go }) {
     const r = e.currentTarget.getBoundingClientRect();
     setMenu((prev) => (prev && prev.kind === m.kind && prev.subId === m.subId && prev.chId === m.chId
       ? null
-      : { ...m, rect: { bottom: r.bottom, right: r.right } }));
-  };
-
-  const scrollRow = (subId, dir) => {
-    rowRefs.current[subId]?.scrollBy({ left: dir * 320, behavior: "smooth" });
+      : { ...m, rect: { top: r.top, bottom: r.bottom, right: r.right } }));
   };
 
   // live subject aggregates from real attempts + linked datasets
@@ -225,7 +221,7 @@ export default function Library({ go }) {
           <h3 className="text-[15px] font-bold truncate">{c.title}</h3>
           {c.desc ? <div className="text-[11.5px] text-[var(--v-muted)] mt-0.5 truncate">{c.desc}</div> : null}
           {pill}
-          <div className="text-[11.5px] text-[#8b91a7] mt-[7px]">{meta}</div>
+          <div className="text-[11.5px] text-[var(--v-muted)] mt-[7px]">{meta}</div>
           {roll.attempts > 0 && (
             <div className="mt-2 h-2 rounded-full bg-black/10 overflow-hidden">
               <div className="h-full rounded-full transition-all"
@@ -262,11 +258,11 @@ export default function Library({ go }) {
     <div className="flex min-h-screen" onClick={() => setMenu(null)}>
       <BgBlobs />
       <Sidebar tab="library" go={go} />
-      <main className="flex-1 min-w-0 p-4 px-[22px] pb-10 page-in">
+      <main className="flex-1 min-w-0 p-3 sm:p-4 sm:px-[22px] pb-10 page-in">
         <Topbar searchPh="Search subjects, chapters or commands..." search={q} setSearch={setQ} onLibrary={() => {}} />
 
         {/* hero */}
-        <Card float className="mt-3.5 px-[30px] py-[26px] flex items-center min-h-[150px] overflow-hidden">
+        <Card float className="mt-3.5 px-5 sm:px-[30px] py-5 sm:py-[26px] flex items-center min-h-[150px] overflow-hidden">
           <div className="absolute right-[20%] top-0 bottom-0 w-[340px] pointer-events-none max-lg:hidden" aria-hidden>
             <div className="f3d-sphere w-[58px] h-[58px] left-[6px] top-[40px]" />
             <div className="absolute right-5 top-[52px] w-[190px] h-16 rounded-xl rotate-[-8deg]"
@@ -356,37 +352,40 @@ export default function Library({ go }) {
                 {addTile(s, false, s.chapters.length === 0)}
               </div>
             ) : (
-              <div className="mt-4 relative group/row">
-                {s.chapters.length > 1 && (rowAt[s.id]?.left ?? false) && (
-                  <button onClick={() => scrollRow(s.id, -1)} title="Scroll left" aria-label="Scroll chapters left"
-                    className="absolute left-0 top-1 bottom-1 z-10 w-12 flex items-center justify-start pl-2 text-[var(--v-muted)] hover:text-violet-600 transition-all"
-                    style={{ background: "linear-gradient(90deg, var(--v-card-hi) 20%, transparent)" }}>
-                    <Ico n="chevL" s={22} />
-                  </button>
-                )}
-                {s.chapters.length > 1 && (rowAt[s.id]?.right ?? true) && (
-                  <button onClick={() => scrollRow(s.id, 1)} title="Scroll right" aria-label="Scroll chapters right"
-                    className="absolute right-0 top-1 bottom-1 z-10 w-12 flex items-center justify-end pr-2 text-[var(--v-muted)] hover:text-violet-600 transition-all"
-                    style={{ background: "linear-gradient(-90deg, var(--v-card-hi) 20%, transparent)" }}>
-                    <Ico n="chevR" s={22} />
-                  </button>
-                )}
-                <div ref={(el) => { rowRefs.current[s.id] = el; }} onScroll={() => checkRow(s.id)}
-                  className="flex gap-3 overflow-x-auto no-scrollbar snap-x px-2 py-1">
-                  {s.chapters.map((c) => chapterCard(s, c, true))}
-                  {addTile(s, true, false)}
-                </div>
+              <div className="mt-4 relative">
+                {(() => {
+                  const st = rowAt[s.id] ?? (s.chapters.length > 1 ? { left: false, right: true } : null);
+                  const bc = !st ? "blend-tb" : st.left && st.right ? "blend-tb-lr" : st.left ? "blend-tb-l" : st.right ? "blend-tb-r" : "blend-tb";
+                  return (
+                    <div ref={(el) => { rowRefs.current[s.id] = el; }} onScroll={() => checkRow(s.id)}
+                      className={`flex gap-3 overflow-x-auto no-scrollbar snap-x px-2 py-6 ${bc}`}>
+                      {s.chapters.map((c) => chapterCard(s, c, true))}
+                      {addTile(s, true, false)}
+                    </div>
+                  );
+                })()}
               </div>
             )}
-            {s.chapters.length > 0 && (
-              <button onClick={() => setExpanded((x) => ({ ...x, [s.id]: !x[s.id] }))} style={{ "--neon": "#8b5cf6" }}
-                title={expanded[s.id] ? "Back to scrollable row" : "Expand full subject"}
-                className="neon mt-1 w-full py-1.5 flex items-center gap-3 text-[var(--v-muted)] hover:text-violet-600 transition-colors">
-                <span className="flex-1 h-px bg-[var(--v-line)]" />
-                <Ico n={expanded[s.id] ? "chevU" : "chevD"} s={18} />
-                <span className="flex-1 h-px bg-[var(--v-line)]" />
-              </button>
-            )}
+            {(() => {
+              const rst = rowAt[s.id];
+              const show = expanded[s.id] || (rst ? (rst.left || rst.right) : s.chapters.length > 2);
+              if (!show) return null;
+              return (
+                <div className="group/expand mt-1 flex items-center gap-3 px-1">
+                  <span className="relative flex-1 h-px bg-[var(--v-line)]">
+                    <span className="beam beam-l" aria-hidden />
+                  </span>
+                  <button onClick={() => setExpanded((x) => ({ ...x, [s.id]: !x[s.id] }))} style={{ "--neon": "#8b5cf6" }}
+                    title={expanded[s.id] ? "Back to scrollable row" : "Expand full subject"}
+                    className="neon w-11 h-11 shrink-0 rounded-full f3d-pill flex items-center justify-center text-violet-600">
+                    <Ico n={expanded[s.id] ? "chevU" : "chevD"} s={18} />
+                  </button>
+                  <span className="relative flex-1 h-px bg-[var(--v-line)]">
+                    <span className="beam beam-r" aria-hidden />
+                  </span>
+                </div>
+              );
+            })()}
           </Card>
         ))}
       </main>
@@ -475,8 +474,10 @@ export default function Library({ go }) {
 /* Small floating popup — portalled to <body>, position:fixed in pure
    viewport coordinates. It only ever overlays; it touches no layout. */
 function Popup({ rect, onClose, children }) {
+  const bornAt = useRef(Date.now());
   useEffect(() => {
-    const close = () => onClose();
+    // grace period: scroll momentum from the click itself must not kill a fresh menu
+    const close = () => { if (Date.now() - bornAt.current > 350) onClose(); };
     const onKey = (e) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("scroll", close, true);
     window.addEventListener("resize", close);
@@ -488,9 +489,14 @@ function Popup({ rect, onClose, children }) {
     };
   }, [onClose]);
   const left = Math.max(8, Math.min(rect.right - 200, window.innerWidth - 208));
+  // flip above the button when there is no room below (e.g. low on screen)
+  const up = rect.bottom + 8 + 280 > window.innerHeight;
+  const style = up
+    ? { bottom: window.innerHeight - rect.top + 8, left }
+    : { top: rect.bottom + 8, left };
   return createPortal(
-    <div className="fixed z-[80] f3d pop-in !rounded-[14px] min-w-[192px] max-w-[220px] p-1.5"
-      style={{ top: rect.bottom + 8, left }} onClick={(e) => e.stopPropagation()}>
+    <div className="fixed pos-fixed z-[80] f3d pop-in !rounded-[14px] min-w-[192px] max-w-[220px] max-h-[300px] overflow-y-auto p-1.5"
+      style={style} onClick={(e) => e.stopPropagation()}>
       {children}
     </div>,
     document.body

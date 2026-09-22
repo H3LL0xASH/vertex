@@ -40,9 +40,14 @@ function Shell() {
   const [payload, setPayload] = useState({});
 
   const go = (t, p) => {
-    setPayload(p || {});
-    setTab(t);
-    window.scrollTo({ top: 0 });
+    const apply = () => {
+      setPayload(p || {});
+      setTab(t);
+      window.scrollTo(0, 0);
+    };
+    // buttery crossfade between tabs where supported, instant otherwise
+    if (document.startViewTransition) document.startViewTransition(apply);
+    else apply();
   };
 
   useEffect(() => {
@@ -71,7 +76,7 @@ function Shell() {
         )}
         {tab === "result" && <Result attemptId={payload.attemptId} go={go} />}
       </TabGuard>
-      {withNav && <MobileNav tab={tab} go={setTab} />}
+      {withNav && <MobileNav tab={tab} go={go} />}
       <ToastHost />
     </div>
   );

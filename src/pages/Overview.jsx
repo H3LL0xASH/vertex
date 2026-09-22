@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useVertex } from "../store.jsx";
 import { Card, Ico, Stat, ScoreLine } from "../components/ui.jsx";
 import { Sidebar, Topbar, BgBlobs } from "../components/Shell.jsx";
@@ -17,7 +17,6 @@ const barsFrom = (vals) => vals.map((v) => 8 + Math.round((Math.max(0, Math.min(
 
 export default function Overview({ go }) {
   const { user, showToast } = useVertex();
-  const [search, setSearch] = useState("");
 
   const stats = useMemo(() => getAttemptStats(), []);
   const recents = useMemo(() => listAttempts().slice(0, 4), []);
@@ -59,18 +58,15 @@ export default function Overview({ go }) {
   const maxWeek = Math.max(4, ...week.map((d) => d.count));
   const weekTotal = week.reduce((a, d) => a + d.count, 0);
 
-  const q = search.trim().toLowerCase();
-  const filtered = recents.filter((a) => !q || a.title.toLowerCase().includes(q));
-
   return (
     <div className="flex min-h-screen">
       <BgBlobs />
       <Sidebar tab="overview" go={go} />
-      <main className="flex-1 min-w-0 p-4 px-[22px] pb-[30px] page-in">
-        <Topbar searchPh="Search or command..." search={search} setSearch={setSearch} onLibrary={() => go("library")} />
+      <main className="flex-1 min-w-0 p-3 sm:p-4 sm:px-[22px] pb-[30px] page-in">
+        <Topbar hideSearch onLibrary={() => go("library")} />
 
         {/* hero */}
-        <Card float className="mt-3.5 p-7 flex items-center min-h-[132px] overflow-hidden">
+        <Card float className="mt-3.5 p-5 sm:p-7 flex items-center min-h-[132px] overflow-hidden">
           <div className="absolute right-[8%] top-0 bottom-0 w-[46%] pointer-events-none overflow-hidden max-md:hidden" aria-hidden>
             <div className="absolute w-[130%] h-[220px] right-[-30%] top-[-40px] rounded-full rotate-[-8deg] bg-indigo-200/50" />
             <div className="f3d-sphere w-[130px] h-[130px] right-[38%] top-[-20px]" />
@@ -169,17 +165,14 @@ export default function Overview({ go }) {
             <button onClick={() => showToast(stats.total ? `Showing all ${stats.total} attempts` : "No attempts yet — visit the Library.")} style={{ "--neon": "#8b5cf6" }}
               className="neon ml-auto border border-[var(--v-line)] rounded-full px-[18px] py-2.5 text-[13px] font-bold f3d-pill flex items-center gap-2">View all <Ico n="arrowR" s={13} /></button>
           </div>
-          {filtered.length === 0 && (
+          {recents.length === 0 && stats.total === 0 && (
             <div className="mt-4 text-center py-8 rounded-[18px] border-[1.5px] border-dashed border-[#c9d2e4]">
-              <p className="text-sm text-[var(--v-muted)]">
-                {stats.total === 0 ? "No tests yet — your attempts will appear here." : "No tests match your search."}</p>
-              {stats.total === 0 && (
-                <button onClick={() => go("library")}
-                  className="f3d-btn f3d-btn-violet mt-3 rounded-full px-5 py-2.5 text-[13px] font-bold flex items-center gap-2">Open Library <Ico n="arrowR" s={13} /></button>
-              )}
+              <p className="text-sm text-[var(--v-muted)]">No tests yet — your attempts will appear here.</p>
+              <button onClick={() => go("library")}
+                className="f3d-btn f3d-btn-violet mt-3 rounded-full px-5 py-2.5 text-[13px] font-bold flex items-center gap-2">Open Library <Ico n="arrowR" s={13} /></button>
             </div>
           )}
-          {filtered.map((a) => {
+          {recents.map((a) => {
             const r = toRecord(a);
             const C = 163.3;
             const done = r.status === "completed";

@@ -6,7 +6,6 @@ import { Sidebar, Topbar, BgBlobs } from "../components/Shell.jsx";
 
 export default function Upload({ go }) {
   const { setLibrary, showToast } = useVertex();
-  const [search, setSearch] = useState("");
   const [drag, setDrag] = useState(false);
   const fileRef = useRef(null);
 
@@ -39,9 +38,9 @@ export default function Upload({ go }) {
     <div className="flex min-h-screen">
       <BgBlobs />
       <Sidebar tab="upload" go={go} />
-      <main className="flex-1 min-w-0 p-4 px-[22px] pb-10 page-in">
-        <Topbar searchPh="Search or command..." search={search} setSearch={setSearch} onLibrary={() => go("library")} />
-        <Card float className="mt-3.5 p-[30px]">
+      <main className="flex-1 min-w-0 p-3 sm:p-4 sm:px-[22px] pb-10 page-in">
+        <Topbar hideSearch onLibrary={() => go("library")} />
+        <Card float className="mt-3.5 p-5 sm:p-[30px]">
           <h1 className="text-[30px] font-extrabold tracking-tight">Upload dataset</h1>
           <p className="mt-2 text-sm text-[var(--v-muted)]">Drop a Vertex JSON file — subjects and chapters land straight in your Library.</p>
           <div onDragOver={(e) => { e.preventDefault(); setDrag(true); }} style={{ "--neon": "#8b5cf6" }}

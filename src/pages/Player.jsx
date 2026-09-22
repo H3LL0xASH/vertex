@@ -237,7 +237,7 @@ export default function Player({ attemptId, initialReview, go }) {
                       <button onClick={() => ex.step(1)} style={{ "--neon": "#8b5cf6" }} className="neon w-10 h-10 rounded-xl f3d-pill flex items-center justify-center" title="Next question"><Ico n="chevR" s={18} /></button>
                     </span>
                   </div>
-                  <p className="mt-4 text-[16.5px] leading-relaxed font-medium">Q{q.global_no}. {q.question}</p>
+                  <p className="mt-4 text-[16.5px] leading-relaxed font-medium break-words">Q{q.global_no}. {q.question}</p>
 
                   {/* instant feedback banner (D:\WEB bannerStatus) */}
                   {st.answered && (
@@ -262,7 +262,7 @@ export default function Player({ attemptId, initialReview, go }) {
                             {picked && <span className={`w-3.5 h-3.5 rounded-full ${st.correct || !locked ? "bg-violet-600" : "bg-red-500"}`} />}
                           </span>
                           <span className="w-9 h-9 rounded-lg bg-[var(--v-bg)] border border-[var(--v-line)] font-extrabold flex items-center justify-center shrink-0">{k}</span>
-                          <span className="text-[15px] font-medium">{q.options[k]}</span>
+                          <span className="text-[15px] font-medium min-w-0 break-words">{q.options[k]}</span>
                           {locked && isRight && <span className="ml-auto text-emerald-500 font-extrabold"><Ico n="check" s={18} /></span>}
                           {locked && picked && !isRight && <span className="ml-auto text-red-500 font-extrabold"><Ico n="x" s={18} /></span>}
                         </button>
