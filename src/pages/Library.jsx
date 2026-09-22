@@ -14,6 +14,11 @@ import { Card, Ico, Orb, Modal, Field, TextInput } from "../components/ui.jsx";
 import { Sidebar, Topbar, BgBlobs } from "../components/Shell.jsx";
 
 const TINT_FIX = ["pink", "blue", "green", "orange", "purple", "teal"];
+const ICON_CHOICES = [
+  { k: "book", label: "Book" }, { k: "calc", label: "Calculator" },
+  { k: "flask", label: "Flask" }, { k: "doc", label: "Document" },
+  { k: "target", label: "Target" }, { k: "trophy", label: "Trophy" },
+];
 const DOC_FG = { pink: "#d64a56", blue: "#2f6fd0", green: "#1d9e5e", orange: "#d97a1f", purple: "#6d28d9", teal: "#149a90" };
 const DOC_BG = { pink: "#fbdfe2", blue: "#dde8fa", green: "#d9f2e2", orange: "#fbe7cf", purple: "#e6dcfb", teal: "#d3efec" };
 const NEON = { pink: "#f43f5e", blue: "#3b82f6", green: "#22c55e", orange: "#f97316", purple: "#8b5cf6", teal: "#14b8a6" };
@@ -22,8 +27,8 @@ export default function Library({ go }) {
   const { library, setLibrary, resetLibrary, showToast, launchChapter, startAttempt } = useVertex();
   const [q, setQ] = useState("");
   const [collapsed, setCollapsed] = useState({});
-  const [menu, setMenu] = useState(null); // {x,y,subId}
-  const [modal, setModal] = useState(null); // {mode, subId, ...}
+  const [menu, setMenu] = useState(null); // {x, y, kind:'sub'|'ch', subId, chId}
+  const [modal, setModal] = useState(null); // {mode, subId, chId, ...}
   const [dsModal, setDsModal] = useState(null); // {subjectId, chapterId, title}
   const [hist, setHist] = useState(null); // {subjectId, chapterId, title}
   const [tick, setTick] = useState(0); // bump to re-read attempts from storage
@@ -44,6 +49,47 @@ export default function Library({ go }) {
     setDsModal(null);
     showToast(`“${label}” linked (${r.count} questions).`);
     go("player", { attemptId: r.attemptId });
+  };
+
+  // menu opener — stops propagation so the page-level closer doesn't kill it
+  const openMenu = (e, m) => {
+    e.stopPropagation();
+    const r = e.currentTarget.getBoundingClientRect();
+    setMenu({ x: Math.max(8, r.right + window.scrollX - 200), y: r.bottom + window.scrollY + 8, ...m });
+  };
+
+  // live subject aggregates from real attempts + linked datasets
+  const subjectStats = (s) => {
+    let qs = 0, atts = 0, best = null;
+    s.chapters.forEach((c) => {
+      qs += qcounts[c.id] ?? 0;
+      const roll = chapterRollup(c.id);
+      atts += roll.attempts || 0;
+      if (roll.best !== undefined && (best === null || roll.best > best)) best = roll.best;
+    });
+    return { qs, atts, best };
+  };
+
+  const exportSubject = (subId) => {
+    const s = library.subjects.find((x) => x.id === subId);
+    if (!s) return;
+    const blob = new Blob([JSON.stringify({ subjects: [s] }, null, 2)], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `vertex-${s.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}.json`;
+    document.body.appendChild(a); a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 300);
+    showToast(`“${s.title}” exported.`);
+  };
+
+  const deleteChapterEverywhere = (subId, chId, title) => {
+    chapterAttempts(chId).forEach((a) => deleteAttempt(a.id));
+    mutate((d) => {
+      const s = d.subjects.find((x) => x.id === subId);
+      if (s) s.chapters = s.chapters.filter((c) => c.id !== chId);
+    });
+    setTick((t) => t + 1);
+    showToast(`“${title}” and its attempts deleted.`);
   };
 
   // real question counts from linked datasets (re-normalized when library/tick changes)
@@ -193,18 +239,22 @@ export default function Library({ go }) {
           <Card key={s.id} float delay={si * 0.5} className="mt-3.5 p-5">
             <div className="flex items-start gap-3.5 flex-wrap">
               <Orb tint={s.tint} icon={s.icon} />
-              <div>
+              <div className="min-w-0">
                 <h2 className="text-xl font-extrabold">{s.title}
                   <span className="inline-block ml-2.5 align-middle text-[11.5px] font-bold text-[#5b647c] bg-[#eef1f8] border border-[var(--v-line)] rounded-full px-3 py-1">
                     {s.chapters.length} chapter{s.chapters.length === 1 ? "" : "s"}</span></h2>
-                <div className="text-[12.5px] text-[var(--v-muted)] mt-1">{s.desc}</div>
+                {(() => {
+                  const st = subjectStats(s);
+                  const bits = [];
+                  if (s.desc) bits.push(s.desc);
+                  if (st.qs) bits.push(`${st.qs} questions`);
+                  if (st.atts) bits.push(`${st.atts} attempt${st.atts === 1 ? "" : "s"}`);
+                  if (st.best !== null) bits.push(`best ${st.best}%`);
+                  return <div className="text-[12.5px] text-[var(--v-muted)] mt-1">{bits.join(" · ") || "Empty subject — add a chapter below."}</div>;
+                })()}
               </div>
               <div className="ml-auto flex gap-2">
-                <button onClick={(e) => {
-                  e.stopPropagation();
-                  const r = e.currentTarget.getBoundingClientRect();
-                  setMenu({ x: Math.max(8, r.right + window.scrollX - 180), y: r.bottom + window.scrollY + 8, subId: s.id });
-                }} style={{ "--neon": "#8b5cf6" }} className="neon w-10 h-10 rounded-xl f3d-pill font-extrabold" title="Subject options">•••</button>
+                <button onClick={(e) => openMenu(e, { kind: "sub", subId: s.id })} style={{ "--neon": "#8b5cf6" }} className="neon w-10 h-10 rounded-xl f3d-pill font-extrabold" title="Subject options">•••</button>
                 <button onClick={() => setCollapsed((c) => ({ ...c, [s.id]: !c[s.id] }))} style={{ "--neon": "#8b5cf6" }}
                   className={`neon w-10 h-10 rounded-xl f3d-pill font-extrabold transition-transform ${collapsed[s.id] ? "rotate-180" : ""}`} title="Collapse">︿</button>
               </div>
@@ -237,6 +287,7 @@ export default function Library({ go }) {
                     </span>
                     <div className="min-w-0 flex-1">
                       <h3 className="text-[15px] font-bold truncate">{c.title}</h3>
+                      {c.desc ? <div className="text-[11.5px] text-[var(--v-muted)] mt-0.5 truncate">{c.desc}</div> : null}
                       {pill}
                       <div className="text-[11.5px] text-[#8b91a7] mt-[7px]">{meta}</div>
                       {roll.attempts > 0 && (
@@ -247,11 +298,9 @@ export default function Library({ go }) {
                       )}
                     </div>
                     <div className="flex flex-col gap-1.5 self-center shrink-0">
-                      {roll.attempts > 0 && (
-                        <button onClick={(e) => { e.stopPropagation(); setHist({ subjectId: s.id, chapterId: c.id, title: c.title }); setTick((t) => t + 1); }}
-                          title="Attempt history"
-                          className="w-[38px] h-[38px] rounded-full bg-white/90 border border-black/5 flex items-center justify-center text-[#3b4370] shadow-[0_6px_14px_rgba(35,45,80,.12)] hover:scale-110 transition-transform">◷</button>
-                      )}
+                      <button onClick={(e) => openMenu(e, { kind: "ch", subId: s.id, chId: c.id })} style={{ "--neon": NEON[c.tint] ?? NEON.blue }}
+                        title="Chapter options"
+                        className="neon w-[38px] h-[38px] rounded-full bg-white/90 border border-black/5 flex items-center justify-center text-[#3b4370] font-extrabold shadow-[0_6px_14px_rgba(35,45,80,.12)] hover:scale-110 transition-transform">•••</button>
                       <button onClick={(e) => { e.stopPropagation(); openChapter(s.id, c); }}
                         className="w-[38px] h-[38px] rounded-full bg-white/90 border border-black/5 flex items-center justify-center text-[#3b4370] shadow-[0_6px_14px_rgba(35,45,80,.12)] hover:scale-110 transition-transform">→</button>
                     </div>
@@ -270,11 +319,46 @@ export default function Library({ go }) {
       </main>
 
       {menu && (
-        <div className="fixed z-[60] f3d !rounded-[14px] min-w-[160px] p-1.5" style={{ top: menu.y, left: menu.x }} onClick={(e) => e.stopPropagation()}>
-          <button onClick={() => { setModal({ mode: "rename", subId: menu.subId }); setMenu(null); }}
-            className="block w-full text-left px-3 py-2.5 rounded-[9px] text-[13px] font-semibold hover:bg-black/5">Rename subject</button>
-          <button onClick={() => { setModal({ mode: "delete", subId: menu.subId }); setMenu(null); }}
-            className="block w-full text-left px-3 py-2.5 rounded-[9px] text-[13px] font-semibold text-red-600 hover:bg-black/5">Delete subject</button>
+        <div className="fixed z-[60] f3d !rounded-[14px] min-w-[190px] p-1.5 page-in" style={{ top: menu.y, left: menu.x }} onClick={(e) => e.stopPropagation()}>
+          {menu.kind === "sub" ? (
+            <>
+              <button onClick={() => { setModal({ mode: "rename", subId: menu.subId }); setMenu(null); }}
+                className="block w-full text-left px-3 py-2.5 rounded-[9px] text-[13px] font-semibold hover:bg-black/5">✎ Edit subject</button>
+              <button onClick={() => { setModal({ mode: "chapter", subId: menu.subId }); setMenu(null); }}
+                className="block w-full text-left px-3 py-2.5 rounded-[9px] text-[13px] font-semibold hover:bg-black/5">＋ Add chapter</button>
+              <button onClick={() => { exportSubject(menu.subId); setMenu(null); }}
+                className="block w-full text-left px-3 py-2.5 rounded-[9px] text-[13px] font-semibold hover:bg-black/5">⤓ Export subject JSON</button>
+              <button onClick={() => { setModal({ mode: "delete", subId: menu.subId }); setMenu(null); }}
+                className="block w-full text-left px-3 py-2.5 rounded-[9px] text-[13px] font-semibold text-red-600 hover:bg-black/5">Delete subject</button>
+            </>
+          ) : (
+            <>
+              <button onClick={() => {
+                const s = library.subjects.find((x) => x.id === menu.subId);
+                const c = s?.chapters.find((x) => x.id === menu.chId);
+                setMenu(null);
+                if (c) openChapter(menu.subId, c);
+              }} className="block w-full text-left px-3 py-2.5 rounded-[9px] text-[13px] font-semibold hover:bg-black/5">▶ Start / resume test</button>
+              <button onClick={() => {
+                const s = library.subjects.find((x) => x.id === menu.subId);
+                const c = s?.chapters.find((x) => x.id === menu.chId);
+                setMenu(null);
+                if (c) setModal({ mode: "chapter-edit", subId: menu.subId, chId: menu.chId });
+              }} className="block w-full text-left px-3 py-2.5 rounded-[9px] text-[13px] font-semibold hover:bg-black/5">✎ Edit chapter</button>
+              <button onClick={() => {
+                const s = library.subjects.find((x) => x.id === menu.subId);
+                const c = s?.chapters.find((x) => x.id === menu.chId);
+                setMenu(null);
+                if (c) { setHist({ subjectId: menu.subId, chapterId: menu.chId, title: c.title }); setTick((t) => t + 1); }
+              }} className="block w-full text-left px-3 py-2.5 rounded-[9px] text-[13px] font-semibold hover:bg-black/5">◷ Attempt history</button>
+              <button onClick={() => {
+                const s = library.subjects.find((x) => x.id === menu.subId);
+                const c = s?.chapters.find((x) => x.id === menu.chId);
+                setMenu(null);
+                if (c) deleteChapterEverywhere(menu.subId, menu.chId, c.title);
+              }} className="block w-full text-left px-3 py-2.5 rounded-[9px] text-[13px] font-semibold text-red-600 hover:bg-black/5">Delete chapter</button>
+            </>
+          )}
         </div>
       )}
       {modal && <LibraryModal modal={modal} close={() => setModal(null)} mutate={mutate} library={library} />}
@@ -364,63 +448,149 @@ function HistoryModal({ hist, go, close, refresh }) {
 }
 
 function LibraryModal({ modal, close, mutate, library }) {
-  const { showToast } = useVertex();
+  const { showToast, linkDatasetToChapter } = useVertex();
   const existing = modal.subId ? library.subjects.find((s) => s.id === modal.subId) : null;
-  const [title, setTitle] = useState(existing && modal.mode !== "chapter" ? existing.title : "");
-  const [desc, setDesc] = useState(existing && modal.mode !== "chapter" ? existing.desc ?? "" : "");
-  const [tint, setTint] = useState(existing?.tint ?? "pink");
+  const existingCh = modal.mode === "chapter-edit" && existing
+    ? existing.chapters.find((c) => c.id === modal.chId) : null;
+  const [title, setTitle] = useState(existingCh ? existingCh.title : (existing && modal.mode !== "chapter" ? existing.title : ""));
+  const [desc, setDesc] = useState(existingCh ? (existingCh.desc ?? "") : (existing && modal.mode !== "chapter" ? existing.desc ?? "" : ""));
+  const [tint, setTint] = useState(existingCh ? existingCh.tint : (existing?.tint ?? "pink"));
+  const [icon, setIcon] = useState(existing?.icon ?? "book");
   const [subId, setSubId] = useState(modal.subId ?? library.subjects[0]?.id);
+  const [pendingJson, setPendingJson] = useState(null); // {raw, label} chosen in-modal
+  const [pendingLabel, setPendingLabel] = useState("");
+  const chFileRef = useRef(null);
+
+  const pickJsonFile = (f, done) => {
+    if (!f) return;
+    const r = new FileReader();
+    r.onload = () => {
+      try {
+        const raw = JSON.parse(r.result);
+        done({ raw, label: f.name });
+      } catch { showToast("That file is not valid JSON."); }
+    };
+    r.readAsText(f);
+  };
 
   if (modal.mode === "delete" && existing) {
     return (
       <Modal title="Delete subject?" okText="Delete" danger onClose={close} onOk={() => {
+        existing.chapters.forEach((c) => chapterAttempts(c.id).forEach((a) => deleteAttempt(a.id)));
         mutate((d) => { d.subjects = d.subjects.filter((s) => s.id !== existing.id); });
-        close(); showToast("Subject deleted");
+        close(); showToast("Subject and its attempts deleted.");
       }}>
-        <p className="mt-3 text-sm text-[var(--v-muted)]">“{existing.title}” and its {existing.chapters.length} chapter(s) will be removed.</p>
+        <p className="mt-3 text-sm text-[var(--v-muted)]">“{existing.title}”, its {existing.chapters.length} chapter(s) and all their attempts will be removed.</p>
       </Modal>
     );
   }
-  if (modal.mode === "chapter") {
+  if (modal.mode === "chapter" || modal.mode === "chapter-edit") {
+    const isEdit = modal.mode === "chapter-edit" && existingCh;
+    let linkedInfo = null;
+    if (isEdit && existingCh.dataset) {
+      try {
+        const nz = normalizeExam(existingCh.dataset);
+        linkedInfo = `${nz.title} · ${nz.questions.length} questions`;
+      } catch { linkedInfo = "Linked dataset (unreadable)"; }
+    }
     return (
-      <Modal title="Add chapter" okText="Create" onClose={close} onOk={() => {
-        if (!title.trim() || !subId) return;
-        mutate((d) => {
-          const s = d.subjects.find((x) => x.id === subId);
-          s?.chapters.push({ id: uid("ch"), title: title.trim(), tint });
-        });
-        close(); showToast("Chapter added — link a dataset to start testing.");
+      <Modal title={isEdit ? "Edit chapter" : "Add chapter"} okText={isEdit ? "Save" : "Create"} onClose={close} onOk={() => {
+        if (!title.trim() || (!isEdit && !subId)) return;
+        if (isEdit) {
+          mutate((d) => {
+            const c = d.subjects.find((x) => x.id === modal.subId)?.chapters.find((x) => x.id === modal.chId);
+            if (c) Object.assign(c, { title: title.trim(), desc: desc.trim(), tint });
+          });
+          if (pendingJson) {
+            const r = linkDatasetToChapter(modal.subId, modal.chId, pendingJson.raw);
+            if (r.error) { showToast("Invalid dataset — " + r.error); return; }
+            showToast(`Dataset linked (${r.count} questions).`);
+          } else showToast("Chapter saved.");
+        } else {
+          const newId = uid("ch");
+          mutate((d) => {
+            const s = d.subjects.find((x) => x.id === subId);
+            s?.chapters.push({ id: newId, title: title.trim(), desc: desc.trim(), tint });
+          });
+          if (pendingJson) {
+            const r = linkDatasetToChapter(subId, newId, pendingJson.raw);
+            if (r.error) showToast("Chapter added, but dataset invalid — " + r.error);
+            else showToast(`Chapter added with ${r.count} questions.`);
+          } else showToast("Chapter added — link a dataset to start testing.");
+        }
+        close();
       }}>
-        <Field label="Subject">
-          <select value={subId} onChange={(e) => setSubId(e.target.value)}
-            className="w-full border border-[var(--v-line)] rounded-xl px-3.5 py-3 text-sm bg-[var(--v-bg)]">{
-              library.subjects.map((s) => <option key={s.id} value={s.id}>{s.title}</option>)
-            }</select>
-        </Field>
+        {!isEdit && (
+          <Field label="Subject">
+            <select value={subId} onChange={(e) => setSubId(e.target.value)}
+              className="w-full border border-[var(--v-line)] rounded-xl px-3.5 py-3 text-sm bg-[var(--v-bg)]">{
+                library.subjects.map((s) => <option key={s.id} value={s.id}>{s.title}</option>)
+              }</select>
+          </Field>
+        )}
         <Field label="Chapter name"><TextInput value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Tenses" maxLength={60} /></Field>
-        <p className="mt-3 text-xs text-[var(--v-muted)]">Question count comes from the dataset you link next.</p>
+        <Field label="Description (optional)"><TextInput value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="What does it cover?" maxLength={120} /></Field>
         <TintRow tint={tint} setTint={setTint} />
+        <div className="mt-3.5">
+          <span className="block text-xs font-bold text-[var(--v-muted)] mb-1.5 tracking-wide">QUESTION DATASET (JSON){isEdit ? "" : " — OPTIONAL"}</span>
+          {(pendingJson || linkedInfo) && (
+            <div className="flex items-center gap-2 rounded-xl border border-[var(--v-line)] bg-[var(--v-bg)] px-3.5 py-2.5 text-[13px] mb-2">
+              <b className="truncate">{pendingJson ? `${pendingLabel} (new)` : linkedInfo}</b>
+              <button onClick={() => {
+                if (pendingJson) { setPendingJson(null); setPendingLabel(""); }
+                else mutate((d) => {
+                  const c = d.subjects.find((x) => x.id === modal.subId)?.chapters.find((x) => x.id === modal.chId);
+                  if (c) delete c.dataset;
+                });
+              }} className="ml-auto text-xs font-bold text-red-600 shrink-0">Remove</button>
+            </div>
+          )}
+          <div className="flex gap-2">
+            <button onClick={() => chFileRef.current?.click()} style={{ "--neon": "#8b5cf6" }}
+              className="neon flex-1 rounded-xl border border-[var(--v-line)] px-3 py-2.5 text-[13px] font-bold">⤒ Upload file</button>
+            <button onClick={() => { setPendingJson({ raw: sampleProfitLoss }); setPendingLabel("Profit & Loss sample"); }} style={{ "--neon": "#22c55e" }}
+              className="neon flex-1 rounded-xl border border-[var(--v-line)] px-3 py-2.5 text-[13px] font-bold">✦ Use sample</button>
+          </div>
+          <input ref={chFileRef} type="file" accept="application/json,.json" hidden onChange={(e) => {
+            const f = e.target.files[0];
+            e.target.value = "";
+            pickJsonFile(f, ({ raw, label }) => { setPendingJson({ raw }); setPendingLabel(label); });
+          }} />
+          <p className="mt-2 text-xs text-[var(--v-muted)]">Question count comes straight from the file — asked here, no second popup.</p>
+        </div>
       </Modal>
     );
   }
   return (
-    <Modal title={modal.mode === "rename" ? "Rename subject" : "Add subject"} okText={modal.mode === "rename" ? "Save" : "Create"}
+    <Modal title={modal.mode === "rename" ? "Edit subject" : "Add subject"} okText={modal.mode === "rename" ? "Save" : "Create"}
       onClose={close} onOk={() => {
         if (!title.trim()) return;
         if (existing) {
           mutate((d) => {
             const s = d.subjects.find((x) => x.id === existing.id);
-            Object.assign(s, { title: title.trim(), desc: desc.trim(), tint });
+            Object.assign(s, { title: title.trim(), desc: desc.trim(), tint, icon });
           });
-          showToast("Subject renamed");
+          showToast("Subject saved.");
         } else {
-          mutate((d) => { d.subjects.push({ id: uid("sub"), title: title.trim(), desc: desc.trim(), icon: "book", tint, chapters: [] }); });
-          showToast("Subject added");
+          mutate((d) => { d.subjects.push({ id: uid("sub"), title: title.trim(), desc: desc.trim(), icon, tint, chapters: [] }); });
+          showToast("Subject added.");
         }
         close();
       }}>
       <Field label="Subject name"><TextInput value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. History" maxLength={60} /></Field>
       <Field label="Description"><TextInput value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="What lives inside?" maxLength={120} /></Field>
+      <div className="mt-3.5">
+        <span className="block text-xs font-bold text-[var(--v-muted)] mb-1.5 tracking-wide">ICON</span>
+        <div className="flex gap-2 flex-wrap">
+          {ICON_CHOICES.map((c) => (
+            <button key={c.k} title={c.label} onClick={() => setIcon(c.k)}
+              className={`w-[46px] h-[46px] rounded-[13px] flex items-center justify-center transition-all ${c.k === icon ? "ring-2 ring-offset-2 ring-violet-600 scale-105" : "opacity-70 hover:opacity-100"}`}
+              style={{ background: TINT_GRAD[tint], color: "#fff", boxShadow: "inset 2px 2px 4px rgba(255,255,255,.5), 0 4px 10px rgba(0,0,0,.12)" }}>
+              <Ico n={c.k} s={22} />
+            </button>
+          ))}
+        </div>
+      </div>
       <TintRow tint={tint} setTint={setTint} />
     </Modal>
   );
