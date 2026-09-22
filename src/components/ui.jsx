@@ -199,7 +199,13 @@ export const TextInput = (props) => (
 
 /* ---------- toast host ---------- */
 export const ToastHost = () => {
-  const { toast, toastKey } = useVertex();
+  const { toast, toastKey, dismissToast } = useVertex();
   if (!toast) return null;
-  return <div key={toastKey} className="f3d-toast show px-[22px] py-3 rounded-full text-[13.5px] font-semibold">{toast}</div>;
+  return (
+    <div key={toastKey} className="f3d-toast show pl-[22px] pr-2 py-2 rounded-full text-[13.5px] font-semibold flex items-center gap-2 max-w-[min(480px,92vw)]">
+      <span className="pl-1 truncate">{toast}</span>
+      <button onClick={dismissToast} title="Dismiss"
+        className="w-7 h-7 rounded-full shrink-0 bg-white/15 hover:bg-white/30 text-white font-extrabold text-xs transition-colors">✕</button>
+    </div>
+  );
 };

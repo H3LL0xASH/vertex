@@ -51,11 +51,10 @@ export default function Library({ go }) {
     go("player", { attemptId: r.attemptId });
   };
 
-  // menu opener — stops propagation so the page-level closer doesn't kill it
+  // menu opener — anchored dropdown (no viewport math), stops the page-level closer
   const openMenu = (e, m) => {
     e.stopPropagation();
-    const r = e.currentTarget.getBoundingClientRect();
-    setMenu({ x: Math.max(8, r.right + window.scrollX - 200), y: r.bottom + window.scrollY + 8, ...m });
+    setMenu((prev) => (prev && prev.kind === m.kind && prev.subId === m.subId && prev.chId === m.chId ? null : m));
   };
 
   // live subject aggregates from real attempts + linked datasets
@@ -253,10 +252,22 @@ export default function Library({ go }) {
                   return <div className="text-[12.5px] text-[var(--v-muted)] mt-1">{bits.join(" · ") || "Empty subject — add a chapter below."}</div>;
                 })()}
               </div>
-              <div className="ml-auto flex gap-2">
+              <div className="ml-auto flex gap-2 relative">
                 <button onClick={(e) => openMenu(e, { kind: "sub", subId: s.id })} style={{ "--neon": "#8b5cf6" }} className="neon w-10 h-10 rounded-xl f3d-pill font-extrabold" title="Subject options">•••</button>
                 <button onClick={() => setCollapsed((c) => ({ ...c, [s.id]: !c[s.id] }))} style={{ "--neon": "#8b5cf6" }}
                   className={`neon w-10 h-10 rounded-xl f3d-pill font-extrabold transition-transform ${collapsed[s.id] ? "rotate-180" : ""}`} title="Collapse">︿</button>
+                {menu?.kind === "sub" && menu.subId === s.id && (
+                  <div className="absolute right-0 top-[calc(100%+8px)] z-[60] f3d !rounded-[14px] min-w-[200px] p-1.5 page-in" onClick={(e) => e.stopPropagation()}>
+                    <button onClick={() => { setModal({ mode: "rename", subId: s.id }); setMenu(null); }}
+                      className="block w-full text-left px-3 py-2.5 rounded-[9px] text-[13px] font-semibold hover:bg-black/5">✎ Edit subject</button>
+                    <button onClick={() => { setModal({ mode: "chapter", subId: s.id }); setMenu(null); }}
+                      className="block w-full text-left px-3 py-2.5 rounded-[9px] text-[13px] font-semibold hover:bg-black/5">＋ Add chapter</button>
+                    <button onClick={() => { exportSubject(s.id); setMenu(null); }}
+                      className="block w-full text-left px-3 py-2.5 rounded-[9px] text-[13px] font-semibold hover:bg-black/5">⤓ Export subject JSON</button>
+                    <button onClick={() => { setModal({ mode: "delete", subId: s.id }); setMenu(null); }}
+                      className="block w-full text-left px-3 py-2.5 rounded-[9px] text-[13px] font-semibold text-red-600 hover:bg-black/5">Delete subject</button>
+                  </div>
+                )}
               </div>
             </div>
             {!collapsed[s.id] && (
@@ -297,12 +308,24 @@ export default function Library({ go }) {
                         </div>
                       )}
                     </div>
-                    <div className="flex flex-col gap-1.5 self-center shrink-0">
+                    <div className="flex flex-col gap-1.5 self-center shrink-0 relative">
                       <button onClick={(e) => openMenu(e, { kind: "ch", subId: s.id, chId: c.id })} style={{ "--neon": NEON[c.tint] ?? NEON.blue }}
                         title="Chapter options"
                         className="neon w-[38px] h-[38px] rounded-full bg-white/90 border border-black/5 flex items-center justify-center text-[#3b4370] font-extrabold shadow-[0_6px_14px_rgba(35,45,80,.12)] hover:scale-110 transition-transform">•••</button>
                       <button onClick={(e) => { e.stopPropagation(); openChapter(s.id, c); }}
                         className="w-[38px] h-[38px] rounded-full bg-white/90 border border-black/5 flex items-center justify-center text-[#3b4370] shadow-[0_6px_14px_rgba(35,45,80,.12)] hover:scale-110 transition-transform">→</button>
+                      {menu?.kind === "ch" && menu.chId === c.id && (
+                        <div className="absolute right-0 top-[calc(100%+8px)] z-[60] f3d !rounded-[14px] min-w-[190px] p-1.5 page-in" onClick={(e) => e.stopPropagation()}>
+                          <button onClick={() => { setMenu(null); openChapter(s.id, c); }}
+                            className="block w-full text-left px-3 py-2.5 rounded-[9px] text-[13px] font-semibold hover:bg-black/5">▶ Start / resume test</button>
+                          <button onClick={() => { setMenu(null); setModal({ mode: "chapter-edit", subId: s.id, chId: c.id }); }}
+                            className="block w-full text-left px-3 py-2.5 rounded-[9px] text-[13px] font-semibold hover:bg-black/5">✎ Edit chapter</button>
+                          <button onClick={() => { setMenu(null); setHist({ subjectId: s.id, chapterId: c.id, title: c.title }); setTick((t) => t + 1); }}
+                            className="block w-full text-left px-3 py-2.5 rounded-[9px] text-[13px] font-semibold hover:bg-black/5">◷ Attempt history</button>
+                          <button onClick={() => { setMenu(null); deleteChapterEverywhere(s.id, c.id, c.title); }}
+                            className="block w-full text-left px-3 py-2.5 rounded-[9px] text-[13px] font-semibold text-red-600 hover:bg-black/5">Delete chapter</button>
+                        </div>
+                      )}
                     </div>
                   </div>
                   );
@@ -318,49 +341,6 @@ export default function Library({ go }) {
         ))}
       </main>
 
-      {menu && (
-        <div className="fixed z-[60] f3d !rounded-[14px] min-w-[190px] p-1.5 page-in" style={{ top: menu.y, left: menu.x }} onClick={(e) => e.stopPropagation()}>
-          {menu.kind === "sub" ? (
-            <>
-              <button onClick={() => { setModal({ mode: "rename", subId: menu.subId }); setMenu(null); }}
-                className="block w-full text-left px-3 py-2.5 rounded-[9px] text-[13px] font-semibold hover:bg-black/5">✎ Edit subject</button>
-              <button onClick={() => { setModal({ mode: "chapter", subId: menu.subId }); setMenu(null); }}
-                className="block w-full text-left px-3 py-2.5 rounded-[9px] text-[13px] font-semibold hover:bg-black/5">＋ Add chapter</button>
-              <button onClick={() => { exportSubject(menu.subId); setMenu(null); }}
-                className="block w-full text-left px-3 py-2.5 rounded-[9px] text-[13px] font-semibold hover:bg-black/5">⤓ Export subject JSON</button>
-              <button onClick={() => { setModal({ mode: "delete", subId: menu.subId }); setMenu(null); }}
-                className="block w-full text-left px-3 py-2.5 rounded-[9px] text-[13px] font-semibold text-red-600 hover:bg-black/5">Delete subject</button>
-            </>
-          ) : (
-            <>
-              <button onClick={() => {
-                const s = library.subjects.find((x) => x.id === menu.subId);
-                const c = s?.chapters.find((x) => x.id === menu.chId);
-                setMenu(null);
-                if (c) openChapter(menu.subId, c);
-              }} className="block w-full text-left px-3 py-2.5 rounded-[9px] text-[13px] font-semibold hover:bg-black/5">▶ Start / resume test</button>
-              <button onClick={() => {
-                const s = library.subjects.find((x) => x.id === menu.subId);
-                const c = s?.chapters.find((x) => x.id === menu.chId);
-                setMenu(null);
-                if (c) setModal({ mode: "chapter-edit", subId: menu.subId, chId: menu.chId });
-              }} className="block w-full text-left px-3 py-2.5 rounded-[9px] text-[13px] font-semibold hover:bg-black/5">✎ Edit chapter</button>
-              <button onClick={() => {
-                const s = library.subjects.find((x) => x.id === menu.subId);
-                const c = s?.chapters.find((x) => x.id === menu.chId);
-                setMenu(null);
-                if (c) { setHist({ subjectId: menu.subId, chapterId: menu.chId, title: c.title }); setTick((t) => t + 1); }
-              }} className="block w-full text-left px-3 py-2.5 rounded-[9px] text-[13px] font-semibold hover:bg-black/5">◷ Attempt history</button>
-              <button onClick={() => {
-                const s = library.subjects.find((x) => x.id === menu.subId);
-                const c = s?.chapters.find((x) => x.id === menu.chId);
-                setMenu(null);
-                if (c) deleteChapterEverywhere(menu.subId, menu.chId, c.title);
-              }} className="block w-full text-left px-3 py-2.5 rounded-[9px] text-[13px] font-semibold text-red-600 hover:bg-black/5">Delete chapter</button>
-            </>
-          )}
-        </div>
-      )}
       {modal && <LibraryModal modal={modal} close={() => setModal(null)} mutate={mutate} library={library} />}
       {hist && <HistoryModal hist={hist} go={go}
         close={() => setHist(null)} refresh={() => setTick((t) => t + 1)} />}

@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { librarySeed } from "./data/seed.js";
 import { normalizeExam, validateExam } from "./engine/examFormat.js";
 import { createAttempt, latestAttemptForChapter, getAttempt } from "./engine/attempts.js";
@@ -27,6 +27,7 @@ export function VertexProvider({ children }) {
   });
   const [toast, setToast] = useState("");
   const [toastKey, setToastKey] = useState(0);
+  const toastTimer = useRef(null);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -37,9 +38,17 @@ export function VertexProvider({ children }) {
     set("vertexLibraryV1", JSON.stringify(library));
   }, [library]);
 
-  const showToast = useCallback((msg) => {
+  const dismissToast = useCallback(() => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    setToast("");
+  }, []);
+
+  const showToast = useCallback((msg, ms = 2600) => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
     setToast(msg);
     setToastKey((k) => k + 1);
+    // auto-dismiss like a native snackbar; X button dismisses instantly
+    toastTimer.current = setTimeout(() => setToast(""), ms);
   }, []);
 
   const login = useCallback((name) => {
@@ -116,9 +125,9 @@ export function VertexProvider({ children }) {
     toggleTheme: () => setTheme((t) => (t === "dark" ? "light" : "dark")),
     library, setLibrary,
     resetLibrary: () => setLibrary(structuredClone(librarySeed)),
-    toast, toastKey, showToast,
+    toast, toastKey, showToast, dismissToast,
     linkDatasetToChapter, launchChapter, startAttempt, getAttempt,
-  }), [user, authed, login, logout, theme, library, toast, toastKey, showToast,
+  }), [user, authed, login, logout, theme, library, toast, toastKey, showToast, dismissToast,
     linkDatasetToChapter, launchChapter, startAttempt]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
