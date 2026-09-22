@@ -28,6 +28,7 @@ export default function Library({ go }) {
   const { library, setLibrary, resetLibrary, showToast, launchChapter, startAttempt } = useVertex();
   const [q, setQ] = useState("");
   const [expanded, setExpanded] = useState({}); // subId -> true = full grid, default = scroll row
+  const rowRefs = useRef({});
   const [menu, setMenu] = useState(null); // {kind:'sub'|'ch', subId, chId, rect:{bottom,right}}
   const [modal, setModal] = useState(null); // {mode, subId, chId, ...}
   const [rowAt, setRowAt] = useState({}); // subId -> {left, right} edge-arrow visibility

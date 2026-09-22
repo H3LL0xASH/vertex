@@ -4,7 +4,7 @@ import {
   listAttempts, toRecord, getAttemptStats, accuracyBreakdown,
   scoreSeries, topicAccuracy, timeStats,
 } from "../engine/attempts.js";
-import { Card, Orb, Stat, Donut, ScoreLine, SegTabs } from "../components/ui.jsx";
+import { Card, Ico, Orb, Stat, Donut, ScoreLine, SegTabs } from "../components/ui.jsx";
 import { Sidebar, Topbar, BgBlobs } from "../components/Shell.jsx";
 
 const TABS = [

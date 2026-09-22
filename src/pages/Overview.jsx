@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useVertex } from "../store.jsx";
-import { Card, Stat, ScoreLine } from "../components/ui.jsx";
+import { Card, Ico, Stat, ScoreLine } from "../components/ui.jsx";
 import { Sidebar, Topbar, BgBlobs } from "../components/Shell.jsx";
 import { getAttemptStats, listAttempts, toRecord, activityDays, momentumWeek } from "../engine/attempts.js";
 

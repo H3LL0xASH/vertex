@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, Component } from "react";
 import { VertexProvider } from "./store.jsx";
 import { ToastHost } from "./components/ui.jsx";
 import { MobileNav } from "./components/Shell.jsx";
@@ -10,6 +10,28 @@ import Upload from "./pages/Upload.jsx";
 import Player from "./pages/Player.jsx";
 import Result from "./pages/Result.jsx";
 import { useVertex } from "./store.jsx";
+
+/* Safety net: a crashing tab shows a fallback instead of a blank page. */
+class TabGuard extends Component {
+  constructor(props) { super(props); this.state = { failed: false }; }
+  static getDerivedStateFromError() { return { failed: true }; }
+  componentDidCatch(err) { console.error("Tab crashed:", err); }
+  render() {
+    if (this.state.failed) {
+      return (
+        <div className="min-h-screen flex items-center justify-center p-6">
+          <div className="f3d p-10 text-center max-w-md">
+            <h2 className="text-xl font-extrabold">Something glitched on this tab</h2>
+            <p className="text-sm text-[var(--v-muted)] mt-2">Your data is safe. Reload to get back in.</p>
+            <button onClick={() => window.location.reload()}
+              className="f3d-btn f3d-btn-violet mt-5 rounded-xl px-6 py-3 text-sm font-bold">Reload app</button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 function Shell() {
   const { authed } = useVertex();
@@ -39,14 +61,16 @@ function Shell() {
   const withNav = ["overview", "library", "analytics", "upload"].includes(tab);
   return (
     <div className={withNav ? "pb-24 lg:pb-0" : ""}>
-      {tab === "overview" && <Overview go={go} />}
-      {tab === "library" && <Library go={go} />}
-      {tab === "analytics" && <Analytics go={go} />}
-      {tab === "upload" && <Upload go={go} />}
-      {tab === "player" && (
-        <Player attemptId={payload.attemptId} initialReview={payload.review || null} go={go} />
-      )}
-      {tab === "result" && <Result attemptId={payload.attemptId} go={go} />}
+      <TabGuard key={tab}>
+        {tab === "overview" && <Overview go={go} />}
+        {tab === "library" && <Library go={go} />}
+        {tab === "analytics" && <Analytics go={go} />}
+        {tab === "upload" && <Upload go={go} />}
+        {tab === "player" && (
+          <Player attemptId={payload.attemptId} initialReview={payload.review || null} go={go} />
+        )}
+        {tab === "result" && <Result attemptId={payload.attemptId} go={go} />}
+      </TabGuard>
       {withNav && <MobileNav tab={tab} go={setTab} />}
       <ToastHost />
     </div>
