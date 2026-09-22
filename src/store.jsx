@@ -18,6 +18,14 @@ export function VertexProvider({ children }) {
   });
   const [authed, setAuthed] = useState(() => get("vertexAuthed", "") === "1");
   const [theme, setTheme] = useState(() => get("vertexTheme", "light"));
+  const [navCollapsed, setNavCollapsed] = useState(() => get("vertexNavCollapsed", "") === "1");
+  const toggleNav = useCallback(() => {
+    setNavCollapsed((c) => {
+      const n = !c;
+      set("vertexNavCollapsed", n ? "1" : "");
+      return n;
+    });
+  }, []);
   const [library, setLibrary] = useState(() => {
     try {
       const raw = get("vertexLibraryV1", "");
@@ -121,13 +129,13 @@ export function VertexProvider({ children }) {
   }, []);
 
   const value = useMemo(() => ({
-    user, authed, login, logout, theme,
+    user, authed, login, logout, theme, navCollapsed, toggleNav,
     toggleTheme: () => setTheme((t) => (t === "dark" ? "light" : "dark")),
     library, setLibrary,
     resetLibrary: () => setLibrary(structuredClone(librarySeed)),
     toast, toastKey, showToast, dismissToast,
     linkDatasetToChapter, launchChapter, startAttempt, getAttempt,
-  }), [user, authed, login, logout, theme, library, toast, toastKey, showToast, dismissToast,
+  }), [user, authed, login, logout, theme, navCollapsed, toggleNav, library, toast, toastKey, showToast, dismissToast,
     linkDatasetToChapter, launchChapter, startAttempt]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

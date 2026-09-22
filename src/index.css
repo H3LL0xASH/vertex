@@ -351,6 +351,9 @@ button { cursor: pointer; }
 [data-theme="dark"] .border-amber-200 { border-color: #92400e; }
 [data-theme="dark"] .bg-amber-50\/60 { background: rgba(120, 53, 15, 0.35); }
 [data-theme="dark"] .text-slate-700 { color: #dbe2ff; }
+/* hide scrollbars on carousels while keeping scroll */
+.no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
 /* mobile bottom nav */
 .mobilenav {
   position: fixed; left: 12px; right: 12px; bottom: calc(10px + env(safe-area-inset-bottom));

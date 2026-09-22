@@ -9,51 +9,74 @@ const NAV = [
 ];
 
 export function Sidebar({ tab, go }) {
+  const { navCollapsed, toggleNav } = useVertex();
+  const rail = navCollapsed;
   return (
-    <aside className="w-[248px] shrink-0 max-lg:hidden border-r border-[var(--v-line)] flex flex-col px-4 pt-[22px] pb-4 sticky top-0 h-screen overflow-hidden backdrop-blur-xl"
+    <aside className={`${rail ? "w-[78px] px-2.5 items-center" : "w-[248px] px-4"} shrink-0 max-lg:hidden border-r border-[var(--v-line)] flex flex-col pt-[22px] pb-4 sticky top-0 h-screen overflow-hidden backdrop-blur-xl transition-all duration-300 relative`}
       style={{ background: "color-mix(in srgb, var(--v-card-hi) 78%, transparent)" }}>
-      <div className="flex items-center gap-2.5 px-2">
-        <span className="f3d-orb rounded-[14px]" style={{ width: 44, height: 44, background: "linear-gradient(180deg,#8b9ff0,#5b63e8)" }}>
+      {/* collapse arrow on the edge */}
+      <button onClick={toggleNav} title={rail ? "Expand sidebar" : "Collapse to icons"} style={{ "--neon": "#8b5cf6" }}
+        className="neon absolute -right-[17px] top-[64px] z-20 w-[34px] h-[52px] rounded-full f3d-pill flex items-center justify-center text-[15px] font-extrabold text-violet-600">
+        {rail ? "›" : "‹"}
+      </button>
+      <div className={`flex items-center gap-2.5 px-2 ${rail ? "!px-0 justify-center" : ""}`}>
+        <span className="f3d-orb rounded-[14px] shrink-0" style={{ width: 44, height: 44, background: "linear-gradient(180deg,#8b9ff0,#5b63e8)" }}>
           <span className="font-brand font-extrabold text-white text-[22px]">V</span>
         </span>
-        <span>
-          <span className="font-brand font-extrabold text-[26px] tracking-tight block leading-none">vertex</span>
-          <span className="text-[9px] tracking-[0.4em] text-[var(--v-muted)] font-semibold">EXAM SIMULATOR</span>
-        </span>
+        {!rail && (
+          <span>
+            <span className="font-brand font-extrabold text-[26px] tracking-tight block leading-none">vertex</span>
+            <span className="text-[9px] tracking-[0.4em] text-[var(--v-muted)] font-semibold">EXAM SIMULATOR</span>
+          </span>
+        )}
       </div>
-      <div className="mt-7 mb-2.5 mx-2.5 text-[11px] tracking-[0.22em] text-[var(--v-muted)] font-bold">WORKSPACE</div>
-      <nav className="flex flex-col gap-2.5">
+      {!rail && <div className="mt-7 mb-2.5 mx-2.5 text-[11px] tracking-[0.22em] text-[var(--v-muted)] font-bold">WORKSPACE</div>}
+      {rail && <div className="mt-7 mb-2.5 h-px w-10 bg-[var(--v-line)]" />}
+      <nav className={`flex flex-col gap-2.5 w-full ${rail ? "mt-2" : ""}`}>
         {NAV.map((n) => (
-          <button key={n.k} onClick={() => go(n.k)} style={{ "--neon": "#8b5cf6" }}
-            className={`neon flex gap-3 items-start p-3 rounded-2xl border text-left w-full transition-all hover:-translate-y-[1px] ${tab === n.k ? "bg-violet-100 border-violet-300 shadow-[0_8px_20px_rgba(124,58,237,.14)]" : "border-transparent"}`}>
+          <button key={n.k} onClick={() => go(n.k)} title={rail ? `${n.t} — ${n.s}` : undefined} style={{ "--neon": "#8b5cf6" }}
+            className={`neon flex gap-3 items-center p-3 rounded-2xl border w-full transition-all hover:-translate-y-[1px] ${rail ? "!px-0 justify-center" : "items-start text-left"} ${tab === n.k ? "bg-violet-100 border-violet-300 shadow-[0_8px_20px_rgba(124,58,237,.14)]" : "border-transparent"}`}>
             <span className={`f3d-orb rounded-xl ${tab === n.k ? "text-white" : ""}`}
               style={tab === n.k
                 ? { width: 38, height: 38, background: "linear-gradient(180deg,#a78bfa,#6d28d9)" }
                 : { width: 38, height: 38, background: "linear-gradient(180deg,#fff,#eef1f7)", color: "#5b647c", border: "1px solid var(--v-line)" }}>
               <Ico n={n.icon} s={20} />
             </span>
-            <span>
-              <span className={`text-[14.5px] font-bold ${tab === n.k ? "text-violet-700" : ""}`}>{n.t}</span>
-              <div className="text-xs text-[var(--v-muted)] mt-0.5">{n.s}</div>
-            </span>
+            {!rail && (
+              <span>
+                <span className={`text-[14.5px] font-bold ${tab === n.k ? "text-violet-700" : ""}`}>{n.t}</span>
+                <div className="text-xs text-[var(--v-muted)] mt-0.5">{n.s}</div>
+              </span>
+            )}
           </button>
         ))}
       </nav>
-      {/* restored reference art: mini 3D scene above the practice card */}
-      <div className="mt-auto relative h-[120px] shrink-0" aria-hidden>
-        <div className="absolute w-[130px] h-[130px] rounded-full left-[-30px] bottom-[-40px] opacity-90"
-          style={{ background: "radial-gradient(circle at 35% 30%,#e2ecfd 0%,#9db6e0 45%,#7e9ccb 70%)", boxShadow: "inset -12px -16px 30px rgba(255,255,255,.5)" }} />
-        <div className="absolute w-[150px] h-[90px] rounded-full left-[30px] bottom-[-30px] rotate-[-8deg]"
-          style={{ background: "linear-gradient(180deg,#f6dee3,#f2b8c0)", boxShadow: "inset 6px 8px 16px rgba(255,255,255,.7)" }} />
-        <div className="f3d-sphere w-[44px] h-[44px] left-[104px] top-[6px]" />
-      </div>
-      <div className="f3d f3d-float p-4 flex items-center gap-2.5 text-[15px] leading-snug font-medium">
-        <span>Practice<br />smarter.<br />Go beyond.</span>
-        <span className="ml-auto w-9 h-9 rounded-full f3d-pill flex items-center justify-center shrink-0">→</span>
-      </div>
-      <button onClick={() => go("upload")} className="mt-3 mx-1 flex items-center gap-2.5 text-left text-[13px] text-[var(--v-muted)] hover:text-[var(--v-ink)]">
-        <span className="w-8 h-8 rounded-full f3d-pill flex items-center justify-center font-bold">?</span>
-        <span>Need help?<br />Documentation</span>
+      {rail ? (
+        <div className="mt-auto flex flex-col items-center gap-3">
+          <span className="f3d-orb rounded-full" style={{ width: 44, height: 44, background: "linear-gradient(180deg,#f9a8b0,#e56570)" }}>
+            <span className="font-brand font-extrabold text-white text-lg">→</span>
+          </span>
+        </div>
+      ) : (
+        <>
+          {/* restored reference art: mini 3D scene above the practice card */}
+          <div className="mt-auto relative h-[120px] shrink-0" aria-hidden>
+            <div className="absolute w-[130px] h-[130px] rounded-full left-[-30px] bottom-[-40px] opacity-90"
+              style={{ background: "radial-gradient(circle at 35% 30%,#e2ecfd 0%,#9db6e0 45%,#7e9ccb 70%)", boxShadow: "inset -12px -16px 30px rgba(255,255,255,.5)" }} />
+            <div className="absolute w-[150px] h-[90px] rounded-full left-[30px] bottom-[-30px] rotate-[-8deg]"
+              style={{ background: "linear-gradient(180deg,#f6dee3,#f2b8c0)", boxShadow: "inset 6px 8px 16px rgba(255,255,255,.7)" }} />
+            <div className="f3d-sphere w-[44px] h-[44px] left-[104px] top-[6px]" />
+          </div>
+          <div className="f3d f3d-float p-4 flex items-center gap-2.5 text-[15px] leading-snug font-medium">
+            <span>Practice<br />smarter.<br />Go beyond.</span>
+            <span className="ml-auto w-9 h-9 rounded-full f3d-pill flex items-center justify-center shrink-0">→</span>
+          </div>
+        </>
+      )}
+      <button onClick={() => go("upload")} title="Need help? Documentation"
+        className={`mt-3 mx-1 flex items-center gap-2.5 text-[13px] text-[var(--v-muted)] hover:text-[var(--v-ink)] ${rail ? "!mx-0 justify-center text-left" : "text-left"}`}>
+        <span className="w-8 h-8 rounded-full f3d-pill flex items-center justify-center font-bold shrink-0">?</span>
+        {!rail && <span>Need help?<br />Documentation</span>}
       </button>
     </aside>
   );

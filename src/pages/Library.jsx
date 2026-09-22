@@ -1,4 +1,5 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useVertex } from "../store.jsx";
 import { uid, TINT_GRAD } from "../data/seed.js";
 import { sampleProfitLoss } from "../data/sampleProfitLoss.js";
@@ -26,9 +27,10 @@ const NEON = { pink: "#f43f5e", blue: "#3b82f6", green: "#22c55e", orange: "#f97
 export default function Library({ go }) {
   const { library, setLibrary, resetLibrary, showToast, launchChapter, startAttempt } = useVertex();
   const [q, setQ] = useState("");
-  const [collapsed, setCollapsed] = useState({});
-  const [menu, setMenu] = useState(null); // {x, y, kind:'sub'|'ch', subId, chId}
+  const [expanded, setExpanded] = useState({}); // subId -> true = full grid, default = scroll row
+  const [menu, setMenu] = useState(null); // {kind:'sub'|'ch', subId, chId, rect:{bottom,right}}
   const [modal, setModal] = useState(null); // {mode, subId, chId, ...}
+  const rowRefs = useRef({});
   const [dsModal, setDsModal] = useState(null); // {subjectId, chapterId, title}
   const [hist, setHist] = useState(null); // {subjectId, chapterId, title}
   const [tick, setTick] = useState(0); // bump to re-read attempts from storage
@@ -51,10 +53,19 @@ export default function Library({ go }) {
     go("player", { attemptId: r.attemptId });
   };
 
-  // menu opener — anchored dropdown (no viewport math), stops the page-level closer
+  // menu opener — captures the button rect; the popup itself is portalled to
+  // <body> as position:fixed (viewport coords, no scroll math), so it can
+  // never push layout around or get clipped by scroll containers.
   const openMenu = (e, m) => {
     e.stopPropagation();
-    setMenu((prev) => (prev && prev.kind === m.kind && prev.subId === m.subId && prev.chId === m.chId ? null : m));
+    const r = e.currentTarget.getBoundingClientRect();
+    setMenu((prev) => (prev && prev.kind === m.kind && prev.subId === m.subId && prev.chId === m.chId
+      ? null
+      : { ...m, rect: { bottom: r.bottom, right: r.right } }));
+  };
+
+  const scrollRow = (subId, dir) => {
+    rowRefs.current[subId]?.scrollBy({ left: dir * 320, behavior: "smooth" });
   };
 
   // live subject aggregates from real attempts + linked datasets
@@ -159,12 +170,68 @@ export default function Library({ go }) {
             })),
           })),
         });
-        setCollapsed({});
+        setExpanded({});
         showToast(`Imported ${arr.length} subject(s)`);
       } catch { showToast("Could not read that JSON file"); }
     };
     r.readAsText(f);
   };
+
+  /* One chapter tile — shared by the scroll row and the expanded grid. */
+  const chapterCard = (s, c, rowMode) => {
+    const roll = chapterRollup(c.id);
+    const nq = qcounts[c.id] ?? 0;
+    const hasDs = !!c.dataset;
+    const pill = !hasDs
+      ? <span className="inline-block mt-[7px] text-[11px] font-bold rounded-full px-[11px] py-1 bg-[#eef1f7] text-[#5b647c] border border-[#dde3ee]">No dataset</span>
+      : roll.attempts === 0
+        ? <span className="inline-block mt-[7px] text-[11px] font-bold rounded-full px-[11px] py-1 bg-[#eef1f7] text-[#5b647c] border border-[#dde3ee]">Not started</span>
+        : roll.status === "in_progress"
+          ? <span className="inline-block mt-[7px] text-[11px] font-bold rounded-full px-[11px] py-1 bg-[#fde8d4] text-[#c2570b] border border-[#f5cfa5]">In progress · {roll.latestPct}%</span>
+          : <span className="inline-block mt-[7px] text-[11px] font-bold rounded-full px-[11px] py-1 bg-emerald-50 text-emerald-600 border border-emerald-200">Best {roll.best}%</span>;
+    const meta = !hasDs
+      ? "Link a dataset to start testing"
+      : roll.attempts === 0
+        ? `${nq} questions · no attempts yet`
+        : `${roll.answered} / ${roll.total} answered · ${roll.attempts} attempt${roll.attempts === 1 ? "" : "s"} · ${fmtDate(roll.updatedAt)}`;
+    return (
+      <div key={c.id} onClick={() => openChapter(s.id, c)}
+        className={`neon cht cht-${c.tint || "blue"} rounded-2xl p-4 flex gap-3 items-start shadow-[0_8px_20px_rgba(35,45,80,.07)] hover:-translate-y-[3px] transition-transform cursor-pointer ${rowMode ? "shrink-0 w-[272px] snap-start" : ""}`}
+        style={{ "--neon": NEON[c.tint] ?? NEON.blue }}>
+        <span className="w-[52px] h-[52px] rounded-[14px] shrink-0 flex items-center justify-center shadow-[inset_2px_3px_6px_rgba(255,255,255,.6),0_6px_14px_rgba(0,0,0,.1)]"
+          style={{ background: DOC_BG[c.tint] ?? DOC_BG.blue, color: DOC_FG[c.tint] ?? DOC_FG.blue }}>
+          <Ico n="doc" s={26} />
+        </span>
+        <div className="min-w-0 flex-1">
+          <h3 className="text-[15px] font-bold truncate">{c.title}</h3>
+          {c.desc ? <div className="text-[11.5px] text-[var(--v-muted)] mt-0.5 truncate">{c.desc}</div> : null}
+          {pill}
+          <div className="text-[11.5px] text-[#8b91a7] mt-[7px]">{meta}</div>
+          {roll.attempts > 0 && (
+            <div className="mt-2 h-2 rounded-full bg-black/10 overflow-hidden">
+              <div className="h-full rounded-full transition-all"
+                style={{ width: `${Math.max(roll.latestPct, 3)}%`, background: "linear-gradient(90deg,#c4b5fd,#6d28d9)" }} />
+            </div>
+          )}
+        </div>
+        <div className="flex flex-col gap-1.5 self-center shrink-0">
+          <button onClick={(e) => openMenu(e, { kind: "ch", subId: s.id, chId: c.id })} style={{ "--neon": NEON[c.tint] ?? NEON.blue }}
+            title="Chapter options"
+            className="neon w-[38px] h-[38px] rounded-full bg-white/90 border border-black/5 flex items-center justify-center text-[#3b4370] font-extrabold shadow-[0_6px_14px_rgba(35,45,80,.12)] hover:scale-110 transition-transform">•••</button>
+          <button onClick={(e) => { e.stopPropagation(); openChapter(s.id, c); }}
+            className="w-[38px] h-[38px] rounded-full bg-white/90 border border-black/5 flex items-center justify-center text-[#3b4370] shadow-[0_6px_14px_rgba(35,45,80,.12)] hover:scale-110 transition-transform">→</button>
+        </div>
+      </div>
+    );
+  };
+
+  const addTile = (s, rowMode, wide) => (
+    <button key="__add" onClick={() => setModal({ mode: "chapter", subId: s.id })} style={{ "--neon": "#8b5cf6" }}
+      className={`neon rounded-2xl flex flex-col gap-2 items-center justify-center text-[13px] font-semibold text-[#5b647c] border-[1.5px] border-dashed border-[#c9d2e4] hover:border-violet-500 hover:text-violet-700 hover:bg-violet-500/5 transition-all ${rowMode ? "shrink-0 w-[220px] snap-start min-h-[150px]" : wide ? "[grid-column:1/-1] min-h-[96px]" : "min-h-[118px]"}`}>
+      <span className="w-[38px] h-[38px] rounded-full f3d-pill flex items-center justify-center text-xl">＋</span>
+      Add Chapter
+    </button>
+  );
 
   return (
     <div className="flex min-h-screen" onClick={() => setMenu(null)}>
@@ -252,95 +319,80 @@ export default function Library({ go }) {
                   return <div className="text-[12.5px] text-[var(--v-muted)] mt-1">{bits.join(" · ") || "Empty subject — add a chapter below."}</div>;
                 })()}
               </div>
-              <div className="ml-auto flex gap-2 relative">
+              <div className="ml-auto flex gap-2">
                 <button onClick={(e) => openMenu(e, { kind: "sub", subId: s.id })} style={{ "--neon": "#8b5cf6" }} className="neon w-10 h-10 rounded-xl f3d-pill font-extrabold" title="Subject options">•••</button>
-                <button onClick={() => setCollapsed((c) => ({ ...c, [s.id]: !c[s.id] }))} style={{ "--neon": "#8b5cf6" }}
-                  className={`neon w-10 h-10 rounded-xl f3d-pill font-extrabold transition-transform ${collapsed[s.id] ? "rotate-180" : ""}`} title="Collapse">︿</button>
-                {menu?.kind === "sub" && menu.subId === s.id && (
-                  <div className="absolute right-0 top-[calc(100%+8px)] z-[60] f3d !rounded-[14px] min-w-[200px] p-1.5 page-in" onClick={(e) => e.stopPropagation()}>
-                    <button onClick={() => { setModal({ mode: "rename", subId: s.id }); setMenu(null); }}
-                      className="block w-full text-left px-3 py-2.5 rounded-[9px] text-[13px] font-semibold hover:bg-black/5">✎ Edit subject</button>
-                    <button onClick={() => { setModal({ mode: "chapter", subId: s.id }); setMenu(null); }}
-                      className="block w-full text-left px-3 py-2.5 rounded-[9px] text-[13px] font-semibold hover:bg-black/5">＋ Add chapter</button>
-                    <button onClick={() => { exportSubject(s.id); setMenu(null); }}
-                      className="block w-full text-left px-3 py-2.5 rounded-[9px] text-[13px] font-semibold hover:bg-black/5">⤓ Export subject JSON</button>
-                    <button onClick={() => { setModal({ mode: "delete", subId: s.id }); setMenu(null); }}
-                      className="block w-full text-left px-3 py-2.5 rounded-[9px] text-[13px] font-semibold text-red-600 hover:bg-black/5">Delete subject</button>
-                  </div>
-                )}
               </div>
             </div>
-            {!collapsed[s.id] && (
-              <div className="mt-4 grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill,minmax(250px,1fr))" }}>
-                {s.chapters.map((c) => {
-                  const roll = chapterRollup(c.id);
-                  const nq = qcounts[c.id] ?? 0;
-                  const hasDs = !!c.dataset;
-                  const pill = !hasDs
-                    ? <span className="inline-block mt-[7px] text-[11px] font-bold rounded-full px-[11px] py-1 bg-[#eef1f7] text-[#5b647c] border border-[#dde3ee]">No dataset</span>
-                    : roll.attempts === 0
-                      ? <span className="inline-block mt-[7px] text-[11px] font-bold rounded-full px-[11px] py-1 bg-[#eef1f7] text-[#5b647c] border border-[#dde3ee]">Not started</span>
-                      : roll.status === "in_progress"
-                        ? <span className="inline-block mt-[7px] text-[11px] font-bold rounded-full px-[11px] py-1 bg-[#fde8d4] text-[#c2570b] border border-[#f5cfa5]">In progress · {roll.latestPct}%</span>
-                        : <span className="inline-block mt-[7px] text-[11px] font-bold rounded-full px-[11px] py-1 bg-emerald-50 text-emerald-600 border border-emerald-200">Best {roll.best}%</span>;
-                  const meta = !hasDs
-                    ? "Link a dataset to start testing"
-                    : roll.attempts === 0
-                      ? `${nq} questions · no attempts yet`
-                      : `${roll.answered} / ${roll.total} answered · ${roll.attempts} attempt${roll.attempts === 1 ? "" : "s"} · ${fmtDate(roll.updatedAt)}`;
-                  return (
-                  <div key={c.id} onClick={() => openChapter(s.id, c)}
-                    className={`neon cht cht-${c.tint || "blue"} rounded-2xl p-4 flex gap-3 items-start shadow-[0_8px_20px_rgba(35,45,80,.07)] hover:-translate-y-[3px] transition-transform cursor-pointer`}
-                    style={{ "--neon": NEON[c.tint] ?? NEON.blue }}>
-                    <span className="w-[52px] h-[52px] rounded-[14px] shrink-0 flex items-center justify-center shadow-[inset_2px_3px_6px_rgba(255,255,255,.6),0_6px_14px_rgba(0,0,0,.1)]"
-                      style={{ background: DOC_BG[c.tint] ?? DOC_BG.blue, color: DOC_FG[c.tint] ?? DOC_FG.blue }}>
-                      <Ico n="doc" s={26} />
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <h3 className="text-[15px] font-bold truncate">{c.title}</h3>
-                      {c.desc ? <div className="text-[11.5px] text-[var(--v-muted)] mt-0.5 truncate">{c.desc}</div> : null}
-                      {pill}
-                      <div className="text-[11.5px] text-[#8b91a7] mt-[7px]">{meta}</div>
-                      {roll.attempts > 0 && (
-                        <div className="mt-2 h-2 rounded-full bg-black/10 overflow-hidden">
-                          <div className="h-full rounded-full transition-all"
-                            style={{ width: `${Math.max(roll.latestPct, 3)}%`, background: "linear-gradient(90deg,#c4b5fd,#6d28d9)" }} />
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex flex-col gap-1.5 self-center shrink-0 relative">
-                      <button onClick={(e) => openMenu(e, { kind: "ch", subId: s.id, chId: c.id })} style={{ "--neon": NEON[c.tint] ?? NEON.blue }}
-                        title="Chapter options"
-                        className="neon w-[38px] h-[38px] rounded-full bg-white/90 border border-black/5 flex items-center justify-center text-[#3b4370] font-extrabold shadow-[0_6px_14px_rgba(35,45,80,.12)] hover:scale-110 transition-transform">•••</button>
-                      <button onClick={(e) => { e.stopPropagation(); openChapter(s.id, c); }}
-                        className="w-[38px] h-[38px] rounded-full bg-white/90 border border-black/5 flex items-center justify-center text-[#3b4370] shadow-[0_6px_14px_rgba(35,45,80,.12)] hover:scale-110 transition-transform">→</button>
-                      {menu?.kind === "ch" && menu.chId === c.id && (
-                        <div className="absolute right-0 top-[calc(100%+8px)] z-[60] f3d !rounded-[14px] min-w-[190px] p-1.5 page-in" onClick={(e) => e.stopPropagation()}>
-                          <button onClick={() => { setMenu(null); openChapter(s.id, c); }}
-                            className="block w-full text-left px-3 py-2.5 rounded-[9px] text-[13px] font-semibold hover:bg-black/5">▶ Start / resume test</button>
-                          <button onClick={() => { setMenu(null); setModal({ mode: "chapter-edit", subId: s.id, chId: c.id }); }}
-                            className="block w-full text-left px-3 py-2.5 rounded-[9px] text-[13px] font-semibold hover:bg-black/5">✎ Edit chapter</button>
-                          <button onClick={() => { setMenu(null); setHist({ subjectId: s.id, chapterId: c.id, title: c.title }); setTick((t) => t + 1); }}
-                            className="block w-full text-left px-3 py-2.5 rounded-[9px] text-[13px] font-semibold hover:bg-black/5">◷ Attempt history</button>
-                          <button onClick={() => { setMenu(null); deleteChapterEverywhere(s.id, c.id, c.title); }}
-                            className="block w-full text-left px-3 py-2.5 rounded-[9px] text-[13px] font-semibold text-red-600 hover:bg-black/5">Delete chapter</button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  );
-                })}
-                <button onClick={() => setModal({ mode: "chapter", subId: s.id })} style={{ "--neon": "#8b5cf6" }}
-                  className={`neon rounded-2xl min-h-[118px] flex flex-col gap-2 items-center justify-center text-[13px] font-semibold text-[#5b647c] border-[1.5px] border-dashed border-[#c9d2e4] hover:border-violet-500 hover:text-violet-700 hover:bg-violet-500/5 transition-all ${s.chapters.length === 0 ? "[grid-column:1/-1] min-h-[96px]" : ""}`}>
-                  <span className="w-[38px] h-[38px] rounded-full f3d-pill flex items-center justify-center text-xl">＋</span>
-                  Add Chapter
-                </button>
+            {expanded[s.id] ? (
+              <div className="mt-4 grid gap-3 page-in" style={{ gridTemplateColumns: "repeat(auto-fill,minmax(250px,1fr))" }}>
+                {s.chapters.map((c) => chapterCard(s, c, false))}
+                {addTile(s, false, s.chapters.length === 0)}
+              </div>
+            ) : (
+              <div className="mt-4 relative">
+                {s.chapters.length > 1 && (
+                  <>
+                    <button onClick={() => scrollRow(s.id, -1)} title="Scroll left" style={{ "--neon": "#8b5cf6" }}
+                      className="neon absolute left-0 top-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full f3d-pill font-extrabold">‹</button>
+                    <button onClick={() => scrollRow(s.id, 1)} title="Scroll right" style={{ "--neon": "#8b5cf6" }}
+                      className="neon absolute right-0 top-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full f3d-pill font-extrabold">›</button>
+                  </>
+                )}
+                <div ref={(el) => { rowRefs.current[s.id] = el; }}
+                  className="flex gap-3 overflow-x-auto no-scrollbar snap-x px-10 py-1">
+                  {s.chapters.map((c) => chapterCard(s, c, true))}
+                  {addTile(s, true, false)}
+                </div>
+              </div>
+            )}
+            {s.chapters.length > 0 && (
+              <div className="mt-1 flex justify-center">
+                <button onClick={() => setExpanded((x) => ({ ...x, [s.id]: !x[s.id] }))} style={{ "--neon": "#8b5cf6" }}
+                  title={expanded[s.id] ? "Back to scrollable row" : "Expand full subject"}
+                  className="neon w-11 h-11 rounded-full f3d-pill text-xl font-extrabold text-violet-600">
+                  {expanded[s.id] ? "⌃" : "⌄"}</button>
               </div>
             )}
           </Card>
         ))}
       </main>
 
+      {menu && (
+        <Popup rect={menu.rect} onClose={() => setMenu(null)}>
+          {menu.kind === "sub" ? (
+            <>
+              <button onClick={() => { setModal({ mode: "rename", subId: menu.subId }); setMenu(null); }}
+                className="block w-full text-left px-3 py-2.5 rounded-[9px] text-[13px] font-semibold hover:bg-black/5">✎ Edit subject</button>
+              <button onClick={() => { setModal({ mode: "chapter", subId: menu.subId }); setMenu(null); }}
+                className="block w-full text-left px-3 py-2.5 rounded-[9px] text-[13px] font-semibold hover:bg-black/5">＋ Add chapter</button>
+              <button onClick={() => { exportSubject(menu.subId); setMenu(null); }}
+                className="block w-full text-left px-3 py-2.5 rounded-[9px] text-[13px] font-semibold hover:bg-black/5">⤓ Export subject JSON</button>
+              <button onClick={() => { setModal({ mode: "delete", subId: menu.subId }); setMenu(null); }}
+                className="block w-full text-left px-3 py-2.5 rounded-[9px] text-[13px] font-semibold text-red-600 hover:bg-black/5">Delete subject</button>
+            </>
+          ) : (
+            <>
+              <button onClick={() => {
+                const c = library.subjects.find((x) => x.id === menu.subId)?.chapters.find((x) => x.id === menu.chId);
+                setMenu(null);
+                if (c) openChapter(menu.subId, c);
+              }} className="block w-full text-left px-3 py-2.5 rounded-[9px] text-[13px] font-semibold hover:bg-black/5">▶ Start / resume test</button>
+              <button onClick={() => { setMenu(null); setModal({ mode: "chapter-edit", subId: menu.subId, chId: menu.chId }); }}
+                className="block w-full text-left px-3 py-2.5 rounded-[9px] text-[13px] font-semibold hover:bg-black/5">✎ Edit chapter</button>
+              <button onClick={() => {
+                const c = library.subjects.find((x) => x.id === menu.subId)?.chapters.find((x) => x.id === menu.chId);
+                setMenu(null);
+                if (c) { setHist({ subjectId: menu.subId, chapterId: menu.chId, title: c.title }); setTick((t) => t + 1); }
+              }} className="block w-full text-left px-3 py-2.5 rounded-[9px] text-[13px] font-semibold hover:bg-black/5">◷ Attempt history</button>
+              <button onClick={() => {
+                const c = library.subjects.find((x) => x.id === menu.subId)?.chapters.find((x) => x.id === menu.chId);
+                setMenu(null);
+                if (c) deleteChapterEverywhere(menu.subId, menu.chId, c.title);
+              }} className="block w-full text-left px-3 py-2.5 rounded-[9px] text-[13px] font-semibold text-red-600 hover:bg-black/5">Delete chapter</button>
+            </>
+          )}
+        </Popup>
+      )}
       {modal && <LibraryModal modal={modal} close={() => setModal(null)} mutate={mutate} library={library} />}
       {hist && <HistoryModal hist={hist} go={go}
         close={() => setHist(null)} refresh={() => setTick((t) => t + 1)} />}
@@ -383,6 +435,31 @@ export default function Library({ go }) {
         </Modal>
       )}
     </div>
+  );
+}
+
+/* Small floating popup — portalled to <body>, position:fixed in pure
+   viewport coordinates. It only ever overlays; it touches no layout. */
+function Popup({ rect, onClose, children }) {
+  useEffect(() => {
+    const close = () => onClose();
+    const onKey = (e) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("scroll", close, true);
+    window.addEventListener("resize", close);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("scroll", close, true);
+      window.removeEventListener("resize", close);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [onClose]);
+  const left = Math.max(8, Math.min(rect.right - 200, window.innerWidth - 208));
+  return createPortal(
+    <div className="fixed z-[80] f3d !rounded-[14px] min-w-[192px] max-w-[220px] p-1.5 page-in"
+      style={{ top: rect.bottom + 8, left }} onClick={(e) => e.stopPropagation()}>
+      {children}
+    </div>,
+    document.body
   );
 }
 
