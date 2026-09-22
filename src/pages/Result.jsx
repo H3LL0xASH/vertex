@@ -32,7 +32,7 @@ export default function Result({ attemptId, go }) {
       <div className="min-h-screen flex items-center justify-center p-6">
         <Card className="p-10 text-center max-w-md">
           <h2 className="text-xl font-extrabold">No result to show</h2>
-          <button onClick={() => go("library")} className="f3d-btn f3d-btn-violet mt-5 rounded-xl px-6 py-3 text-sm font-bold">Back to Library →</button>
+          <button onClick={() => go("library")} className="f3d-btn f3d-btn-violet mt-5 rounded-xl px-6 py-3 text-sm font-bold flex items-center gap-2">Back to Library <Ico n="arrowR" s={14} /></button>
         </Card>
       </div>
     );
@@ -103,7 +103,7 @@ export default function Result({ attemptId, go }) {
                 <p className="text-violet-200 text-sm">Here's how you performed in this test.</p>
               </div>
               <button onClick={() => go("player", { attemptId })} title="Back to test"
-                className="ml-auto w-10 h-10 rounded-xl bg-white/20 text-white font-extrabold hover:bg-white/30 transition-colors">✕</button>
+                className="ml-auto w-10 h-10 rounded-xl bg-white/20 text-white hover:bg-white/30 transition-colors flex items-center justify-center"><Ico n="x" s={15} /></button>
             </div>
           </div>
 
@@ -125,7 +125,7 @@ export default function Result({ attemptId, go }) {
 
             {/* time bar */}
             <div className="f3d mt-3.5 rounded-2xl px-5 py-3.5 flex items-center justify-center gap-3 text-sm font-bold text-[var(--v-muted)]">
-              <span className="text-violet-600 text-lg">◷</span> TOTAL TIME TAKEN
+              <span className="text-violet-600 flex"><Ico n="clock" s={20} /></span> TOTAL TIME TAKEN
               <b className="text-violet-600 text-[22px] font-mono">{formatClock(attempt.timeSpentSec)}</b>
             </div>
 
@@ -171,7 +171,7 @@ export default function Result({ attemptId, go }) {
                     <Ico n={m.icon} s={22} />
                   </span>
                   <b className="text-[14px]">{m.label}</b>
-                  <span className="ml-auto text-[var(--v-muted)] font-extrabold">›</span>
+                  <span className="ml-auto text-[var(--v-muted)] flex"><Ico n="chevR" s={16} /></span>
                 </button>
               ))}
             </div>
@@ -183,9 +183,9 @@ export default function Result({ attemptId, go }) {
               </p>
               <div className="ml-auto flex gap-3">
                 <button onClick={() => go("overview")} style={{ "--neon": "#64748b" }}
-                  className="neon rounded-xl px-6 py-3.5 text-sm font-bold f3d-pill flex gap-2 items-center">⌂ Go to Dashboard</button>
-                <button onClick={restart} className="f3d-btn rounded-xl px-6 py-3.5 text-sm font-bold text-orange-600 border border-orange-200 bg-orange-50"
-                  style={{ "--neon": "#f97316" }}>⟳ Restart Test</button>
+                  className="neon rounded-xl px-6 py-3.5 text-sm font-bold f3d-pill flex gap-2 items-center"><Ico n="home" s={17} /> Go to Dashboard</button>
+                <button onClick={restart} className="f3d-btn rounded-xl px-6 py-3.5 text-sm font-bold text-orange-600 border border-orange-200 bg-orange-50 flex gap-2 items-center"
+                  style={{ "--neon": "#f97316" }}><Ico n="reset" s={15} /> Restart Test</button>
               </div>
             </div>
           </div>

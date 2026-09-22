@@ -30,7 +30,25 @@ export default function Library({ go }) {
   const [expanded, setExpanded] = useState({}); // subId -> true = full grid, default = scroll row
   const [menu, setMenu] = useState(null); // {kind:'sub'|'ch', subId, chId, rect:{bottom,right}}
   const [modal, setModal] = useState(null); // {mode, subId, chId, ...}
-  const rowRefs = useRef({});
+  const [rowAt, setRowAt] = useState({}); // subId -> {left, right} edge-arrow visibility
+  const checkRow = (subId) => {
+    const el = rowRefs.current[subId];
+    if (!el) return;
+    setRowAt((m) => ({
+      ...m,
+      [subId]: {
+        left: el.scrollLeft > 12,
+        right: el.scrollLeft + el.clientWidth < el.scrollWidth - 12,
+      },
+    }));
+  };
+  useEffect(() => {
+    Object.keys(rowRefs.current).forEach(checkRow);
+    const onResize = () => Object.keys(rowRefs.current).forEach(checkRow);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [library, expanded, q]);
   const [dsModal, setDsModal] = useState(null); // {subjectId, chapterId, title}
   const [hist, setHist] = useState(null); // {subjectId, chapterId, title}
   const [tick, setTick] = useState(0); // bump to re-read attempts from storage
@@ -217,9 +235,13 @@ export default function Library({ go }) {
         <div className="flex flex-col gap-1.5 self-center shrink-0">
           <button onClick={(e) => openMenu(e, { kind: "ch", subId: s.id, chId: c.id })} style={{ "--neon": NEON[c.tint] ?? NEON.blue }}
             title="Chapter options"
-            className="neon w-[38px] h-[38px] rounded-full bg-white/90 border border-black/5 flex items-center justify-center text-[#3b4370] font-extrabold shadow-[0_6px_14px_rgba(35,45,80,.12)] hover:scale-110 transition-transform">•••</button>
-          <button onClick={(e) => { e.stopPropagation(); openChapter(s.id, c); }}
-            className="w-[38px] h-[38px] rounded-full bg-white/90 border border-black/5 flex items-center justify-center text-[#3b4370] shadow-[0_6px_14px_rgba(35,45,80,.12)] hover:scale-110 transition-transform">→</button>
+            className="neon w-[38px] h-[38px] rounded-full bg-white/90 border border-black/5 flex items-center justify-center text-[#3b4370] shadow-[0_6px_14px_rgba(35,45,80,.12)] hover:scale-110 transition-transform">
+            <Ico n="dots" s={17} />
+          </button>
+          <button onClick={(e) => { e.stopPropagation(); openChapter(s.id, c); }} title={`Start ${c.title}`}
+            className="w-[38px] h-[38px] rounded-full bg-white/90 border border-black/5 flex items-center justify-center text-[#3b4370] shadow-[0_6px_14px_rgba(35,45,80,.12)] hover:scale-110 transition-transform">
+            <Ico n="arrowR" s={17} />
+          </button>
         </div>
       </div>
     );
@@ -228,7 +250,9 @@ export default function Library({ go }) {
   const addTile = (s, rowMode, wide) => (
     <button key="__add" onClick={() => setModal({ mode: "chapter", subId: s.id })} style={{ "--neon": "#8b5cf6" }}
       className={`neon rounded-2xl flex flex-col gap-2 items-center justify-center text-[13px] font-semibold text-[#5b647c] border-[1.5px] border-dashed border-[#c9d2e4] hover:border-violet-500 hover:text-violet-700 hover:bg-violet-500/5 transition-all ${rowMode ? "shrink-0 w-[220px] snap-start min-h-[150px]" : wide ? "[grid-column:1/-1] min-h-[96px]" : "min-h-[118px]"}`}>
-      <span className="w-[38px] h-[38px] rounded-full f3d-pill flex items-center justify-center text-xl">＋</span>
+      <span className="w-[38px] h-[38px] rounded-full f3d-pill flex items-center justify-center text-[#5b647c]">
+        <Ico n="plus" s={18} />
+      </span>
       Add Chapter
     </button>
   );
@@ -262,9 +286,9 @@ export default function Library({ go }) {
         {/* toolbar */}
         <div className="mt-3.5 flex items-center gap-2.5 flex-wrap">
           <button onClick={() => setModal({ mode: "subject" })}
-            className="f3d-btn f3d-btn-violet rounded-xl px-5 py-[13px] text-[13.5px] font-bold flex gap-2 items-center"><span className="text-base">＋</span> Add Subject</button>
+            className="f3d-btn f3d-btn-violet rounded-xl px-5 py-[13px] text-[13.5px] font-bold flex gap-2 items-center"><Ico n="plus" s={15} /> Add Subject</button>
           <button onClick={() => setModal({ mode: "chapter", subId: library.subjects[0]?.id })} style={{ "--neon": "#8b5cf6" }}
-            className="neon rounded-xl px-5 py-[13px] text-[13.5px] font-bold f3d-pill flex gap-2 items-center"><span className="text-base">＋</span> Add Chapters</button>
+            className="neon rounded-xl px-5 py-[13px] text-[13.5px] font-bold f3d-pill flex gap-2 items-center"><Ico n="plus" s={15} /> Add Chapters</button>
           <div className="f3d-pill neon-focus flex-1 min-w-[200px] h-12 flex items-center gap-2.5 px-4 text-[var(--v-muted)]" style={{ "--neon": "#8b5cf6" }}>
             <Ico n="search" s={18} />
             <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Filter subjects / chapters..."
@@ -287,10 +311,10 @@ export default function Library({ go }) {
             </p>
             <div className="mt-5 flex gap-2.5 justify-center flex-wrap">
               <button onClick={() => setModal({ mode: "subject" })}
-                className="f3d-btn f3d-btn-violet rounded-xl px-5 py-3 text-[13.5px] font-bold">＋ Add Subject</button>
+                className="f3d-btn f3d-btn-violet rounded-xl px-5 py-3 text-[13.5px] font-bold flex items-center gap-2"><Ico n="plus" s={15} /> Add Subject</button>
               <button onClick={() => fileRef.current?.click()} style={{ "--neon": "#8b5cf6" }}
-                className="neon rounded-xl px-5 py-3 text-[13.5px] font-bold f3d-pill">⤒ Upload JSON</button>
-              <button onClick={loadSample} className="f3d-btn f3d-btn-green rounded-xl px-5 py-3 text-[13.5px] font-bold">▶ Try sample test</button>
+                className="neon rounded-xl px-5 py-3 text-[13.5px] font-bold f3d-pill flex items-center gap-2"><Ico n="upload" s={15} /> Upload JSON</button>
+              <button onClick={loadSample} className="f3d-btn f3d-btn-green rounded-xl px-5 py-3 text-[13.5px] font-bold flex items-center gap-2"><Ico n="play" s={13} /> Try sample test</button>
             </div>
           </Card>
         )}
@@ -320,7 +344,9 @@ export default function Library({ go }) {
                 })()}
               </div>
               <div className="ml-auto flex gap-2">
-                <button onClick={(e) => openMenu(e, { kind: "sub", subId: s.id })} style={{ "--neon": "#8b5cf6" }} className="neon w-10 h-10 rounded-xl f3d-pill font-extrabold" title="Subject options">•••</button>
+                <button onClick={(e) => openMenu(e, { kind: "sub", subId: s.id })} style={{ "--neon": "#8b5cf6" }} className="neon w-10 h-10 rounded-xl f3d-pill flex items-center justify-center text-[var(--v-ink)]" title="Subject options">
+                  <Ico n="dots" s={19} />
+                </button>
               </div>
             </div>
             {expanded[s.id] ? (
@@ -329,29 +355,36 @@ export default function Library({ go }) {
                 {addTile(s, false, s.chapters.length === 0)}
               </div>
             ) : (
-              <div className="mt-4 relative">
-                {s.chapters.length > 1 && (
-                  <>
-                    <button onClick={() => scrollRow(s.id, -1)} title="Scroll left" style={{ "--neon": "#8b5cf6" }}
-                      className="neon absolute left-0 top-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full f3d-pill font-extrabold">‹</button>
-                    <button onClick={() => scrollRow(s.id, 1)} title="Scroll right" style={{ "--neon": "#8b5cf6" }}
-                      className="neon absolute right-0 top-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full f3d-pill font-extrabold">›</button>
-                  </>
+              <div className="mt-4 relative group/row">
+                {s.chapters.length > 1 && (rowAt[s.id]?.left ?? false) && (
+                  <button onClick={() => scrollRow(s.id, -1)} title="Scroll left" aria-label="Scroll chapters left"
+                    className="absolute left-0 top-1 bottom-1 z-10 w-12 flex items-center justify-start pl-2 text-[var(--v-muted)] hover:text-violet-600 transition-all"
+                    style={{ background: "linear-gradient(90deg, var(--v-card-hi) 20%, transparent)" }}>
+                    <Ico n="chevL" s={22} />
+                  </button>
                 )}
-                <div ref={(el) => { rowRefs.current[s.id] = el; }}
-                  className="flex gap-3 overflow-x-auto no-scrollbar snap-x px-10 py-1">
+                {s.chapters.length > 1 && (rowAt[s.id]?.right ?? true) && (
+                  <button onClick={() => scrollRow(s.id, 1)} title="Scroll right" aria-label="Scroll chapters right"
+                    className="absolute right-0 top-1 bottom-1 z-10 w-12 flex items-center justify-end pr-2 text-[var(--v-muted)] hover:text-violet-600 transition-all"
+                    style={{ background: "linear-gradient(-90deg, var(--v-card-hi) 20%, transparent)" }}>
+                    <Ico n="chevR" s={22} />
+                  </button>
+                )}
+                <div ref={(el) => { rowRefs.current[s.id] = el; }} onScroll={() => checkRow(s.id)}
+                  className="flex gap-3 overflow-x-auto no-scrollbar snap-x px-2 py-1">
                   {s.chapters.map((c) => chapterCard(s, c, true))}
                   {addTile(s, true, false)}
                 </div>
               </div>
             )}
             {s.chapters.length > 0 && (
-              <div className="mt-1 flex justify-center">
-                <button onClick={() => setExpanded((x) => ({ ...x, [s.id]: !x[s.id] }))} style={{ "--neon": "#8b5cf6" }}
-                  title={expanded[s.id] ? "Back to scrollable row" : "Expand full subject"}
-                  className="neon w-11 h-11 rounded-full f3d-pill text-xl font-extrabold text-violet-600">
-                  {expanded[s.id] ? "⌃" : "⌄"}</button>
-              </div>
+              <button onClick={() => setExpanded((x) => ({ ...x, [s.id]: !x[s.id] }))} style={{ "--neon": "#8b5cf6" }}
+                title={expanded[s.id] ? "Back to scrollable row" : "Expand full subject"}
+                className="neon mt-1 w-full py-1.5 flex items-center gap-3 text-[var(--v-muted)] hover:text-violet-600 transition-colors">
+                <span className="flex-1 h-px bg-[var(--v-line)]" />
+                <Ico n={expanded[s.id] ? "chevU" : "chevD"} s={18} />
+                <span className="flex-1 h-px bg-[var(--v-line)]" />
+              </button>
             )}
           </Card>
         ))}
@@ -364,7 +397,7 @@ export default function Library({ go }) {
               <button onClick={() => { setModal({ mode: "rename", subId: menu.subId }); setMenu(null); }}
                 className="block w-full text-left px-3 py-2.5 rounded-[9px] text-[13px] font-semibold hover:bg-black/5">✎ Edit subject</button>
               <button onClick={() => { setModal({ mode: "chapter", subId: menu.subId }); setMenu(null); }}
-                className="block w-full text-left px-3 py-2.5 rounded-[9px] text-[13px] font-semibold hover:bg-black/5">＋ Add chapter</button>
+                className="block w-full text-left px-3 py-2.5 rounded-[9px] text-[13px] font-semibold hover:bg-black/5 flex items-center gap-2"><Ico n="plus" s={13} /> Add chapter</button>
               <button onClick={() => { exportSubject(menu.subId); setMenu(null); }}
                 className="block w-full text-left px-3 py-2.5 rounded-[9px] text-[13px] font-semibold hover:bg-black/5">⤓ Export subject JSON</button>
               <button onClick={() => { setModal({ mode: "delete", subId: menu.subId }); setMenu(null); }}
@@ -376,14 +409,14 @@ export default function Library({ go }) {
                 const c = library.subjects.find((x) => x.id === menu.subId)?.chapters.find((x) => x.id === menu.chId);
                 setMenu(null);
                 if (c) openChapter(menu.subId, c);
-              }} className="block w-full text-left px-3 py-2.5 rounded-[9px] text-[13px] font-semibold hover:bg-black/5">▶ Start / resume test</button>
+              }} className="block w-full text-left px-3 py-2.5 rounded-[9px] text-[13px] font-semibold hover:bg-black/5 flex items-center gap-2"><Ico n="play" s={13} /> Start / resume test</button>
               <button onClick={() => { setMenu(null); setModal({ mode: "chapter-edit", subId: menu.subId, chId: menu.chId }); }}
                 className="block w-full text-left px-3 py-2.5 rounded-[9px] text-[13px] font-semibold hover:bg-black/5">✎ Edit chapter</button>
               <button onClick={() => {
                 const c = library.subjects.find((x) => x.id === menu.subId)?.chapters.find((x) => x.id === menu.chId);
                 setMenu(null);
                 if (c) { setHist({ subjectId: menu.subId, chapterId: menu.chId, title: c.title }); setTick((t) => t + 1); }
-              }} className="block w-full text-left px-3 py-2.5 rounded-[9px] text-[13px] font-semibold hover:bg-black/5">◷ Attempt history</button>
+              }} className="block w-full text-left px-3 py-2.5 rounded-[9px] text-[13px] font-semibold hover:bg-black/5 flex items-center gap-2"><Ico n="clock" s={13} /> Attempt history</button>
               <button onClick={() => {
                 const c = library.subjects.find((x) => x.id === menu.subId)?.chapters.find((x) => x.id === menu.chId);
                 setMenu(null);
@@ -455,7 +488,7 @@ function Popup({ rect, onClose, children }) {
   }, [onClose]);
   const left = Math.max(8, Math.min(rect.right - 200, window.innerWidth - 208));
   return createPortal(
-    <div className="fixed z-[80] f3d !rounded-[14px] min-w-[192px] max-w-[220px] p-1.5 page-in"
+    <div className="fixed z-[80] f3d pop-in !rounded-[14px] min-w-[192px] max-w-[220px] p-1.5"
       style={{ top: rect.bottom + 8, left }} onClick={(e) => e.stopPropagation()}>
       {children}
     </div>,
@@ -490,9 +523,9 @@ function HistoryModal({ hist, go, close, refresh }) {
               <div className="mt-2.5 flex gap-2">
                 {r.status === "in_progress"
                   ? <button onClick={() => { close(); go("player", { attemptId: a.id }); }}
-                    className="f3d-btn f3d-btn-violet rounded-lg px-3.5 py-1.5 text-xs font-bold">Resume →</button>
+                    className="f3d-btn f3d-btn-violet rounded-lg px-3.5 py-1.5 text-xs font-bold flex items-center gap-1.5">Resume <Ico n="arrowR" s={12} /></button>
                   : <button onClick={() => { close(); go("result", { attemptId: a.id }); }}
-                    className="f3d-btn f3d-btn-violet rounded-lg px-3.5 py-1.5 text-xs font-bold">View result →</button>}
+                    className="f3d-btn f3d-btn-violet rounded-lg px-3.5 py-1.5 text-xs font-bold flex items-center gap-1.5">View result <Ico n="arrowR" s={12} /></button>}
                 <button onClick={() => { deleteAttempt(a.id); reload(); showToast("Attempt deleted."); }}
                   className="rounded-lg px-3.5 py-1.5 text-xs font-bold text-red-600 border border-red-200">Delete</button>
               </div>
@@ -604,9 +637,9 @@ function LibraryModal({ modal, close, mutate, library }) {
           )}
           <div className="flex gap-2">
             <button onClick={() => chFileRef.current?.click()} style={{ "--neon": "#8b5cf6" }}
-              className="neon flex-1 rounded-xl border border-[var(--v-line)] px-3 py-2.5 text-[13px] font-bold">⤒ Upload file</button>
+              className="neon flex-1 rounded-xl border border-[var(--v-line)] px-3 py-2.5 text-[13px] font-bold flex items-center justify-center gap-2"><Ico n="upload" s={14} /> Upload file</button>
             <button onClick={() => { setPendingJson({ raw: sampleProfitLoss }); setPendingLabel("Profit & Loss sample"); }} style={{ "--neon": "#22c55e" }}
-              className="neon flex-1 rounded-xl border border-[var(--v-line)] px-3 py-2.5 text-[13px] font-bold">✦ Use sample</button>
+              className="neon flex-1 rounded-xl border border-[var(--v-line)] px-3 py-2.5 text-[13px] font-bold flex items-center justify-center gap-2"><Ico n="star" s={14} /> Use sample</button>
           </div>
           <input ref={chFileRef} type="file" accept="application/json,.json" hidden onChange={(e) => {
             const f = e.target.files[0];

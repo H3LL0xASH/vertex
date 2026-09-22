@@ -59,7 +59,7 @@ export default function Player({ attemptId, initialReview, go }) {
         <Card className="p-10 text-center max-w-md">
           <h2 className="text-xl font-extrabold">Attempt not found</h2>
           <p className="text-sm text-[var(--v-muted)] mt-2">It may have been deleted in another tab.</p>
-          <button onClick={() => go("library")} className="f3d-btn f3d-btn-violet mt-5 rounded-xl px-6 py-3 text-sm font-bold">Back to Library →</button>
+          <button onClick={() => go("library")} className="f3d-btn f3d-btn-violet mt-5 rounded-xl px-6 py-3 text-sm font-bold flex items-center gap-2">Back to Library <Ico n="arrowR" s={14} /></button>
         </Card>
       </div>
     );
@@ -92,7 +92,7 @@ export default function Player({ attemptId, initialReview, go }) {
         className={`neon h-10 rounded-xl text-sm font-bold border flex items-center justify-center gap-1 ${cls}`}
         style={{ ...bg, "--neon": "#8b5cf6" }}>
         {qq.global_no}
-        {s.marked && <span className="text-[9px]">⚑</span>}
+        {s.marked && <span className="w-1.5 h-1.5 rounded-full bg-current" />}
       </button>
     );
   };
@@ -105,9 +105,9 @@ export default function Player({ attemptId, initialReview, go }) {
       </div>
       <div className="mt-3 grid grid-cols-2 gap-x-2 gap-y-2.5 text-[12.5px] font-medium">
         <span className="flex items-center gap-2"><i className="w-4 h-4 rounded-full bg-slate-200 border border-black/10 inline-block" /> Not Answered ({counts.un})</span>
-        <span className="flex items-center gap-2"><i className="w-4 h-4 rounded-full bg-emerald-500 text-white text-[10px] font-bold inline-flex items-center justify-center">✓</i> Correct ({counts.co})</span>
+        <span className="flex items-center gap-2"><i className="w-4 h-4 rounded-full bg-emerald-500 text-white inline-flex items-center justify-center"><Ico n="check" s={10} /></i> Correct ({counts.co})</span>
         <span className="flex items-center gap-2"><i className="w-4 h-4 rounded-full inline-block" style={{ background: "linear-gradient(180deg,#f87171,#dc2626)" }} /> Wrong ({counts.wr})</span>
-        <span className="flex items-center gap-2"><i className="w-4 h-4 rounded-md bg-violet-600 text-white text-[10px] font-bold inline-flex items-center justify-center">✓</i> Marked ({counts.mk})</span>
+        <span className="flex items-center gap-2"><i className="w-4 h-4 rounded-md bg-violet-600 text-white inline-flex items-center justify-center"><Ico n="check" s={10} /></i> Marked ({counts.mk})</span>
       </div>
       <div className="mt-4 space-y-2.5 max-h-[52vh] overflow-y-auto pr-1">
         {ex.topics.length === 0 && (
@@ -130,7 +130,7 @@ export default function Player({ attemptId, initialReview, go }) {
                   className="w-full flex items-center gap-2 px-3.5 py-2.5 text-[13.5px] font-bold">
                   <span className="w-5 h-5 rounded-md bg-violet-600 text-white text-[11px] inline-flex items-center justify-center">▣</span>
                   <span className="truncate">{sec}</span>
-                  <span className={`ml-auto text-[var(--v-muted)] transition-transform ${open ? "rotate-180" : ""}`}>▾</span>
+                  <span className={`ml-auto text-[var(--v-muted)] transition-transform ${open ? "rotate-180" : ""}`}><Ico n="chevD" s={14} /></span>
                 </button>
                 {open && list.map((t) => (
                   <div key={t.section + t.topic} className="px-3 pb-3">
@@ -175,11 +175,11 @@ export default function Player({ attemptId, initialReview, go }) {
           <div className="f3d-pill px-5 py-2 text-sm">Time Left <b className="text-violet-600 text-[17px] font-mono"> {formatClock(attempt.timeSpentSec)}</b></div>
           <div className="ml-auto flex items-center gap-2.5">
             <button onClick={() => showToast("Question reported — thanks for flagging it.")} style={{ "--neon": "#8b5cf6" }}
-              className="neon h-[46px] px-5 rounded-full f3d-pill text-[13.5px] font-bold">⚑ Report</button>
+              className="neon h-[46px] px-5 rounded-full f3d-pill text-[13.5px] font-bold flex items-center gap-2"><Ico n="flag" s={16} /> Report</button>
             <button onClick={toggleTheme} style={{ "--neon": "#8b5cf6" }}
               className="neon h-[46px] px-5 rounded-full f3d-pill text-[13.5px] font-bold">{theme === "dark" ? "☀️" : "🌙"} Dark</button>
             <button onClick={() => setConfirmReset(true)} style={{ "--neon": "#f43f5e" }}
-              className="neon h-[46px] px-5 rounded-full text-[13.5px] font-bold text-red-500 border border-red-200 bg-red-50">⟳ Reset</button>
+              className="neon h-[46px] px-5 rounded-full text-[13.5px] font-bold text-red-500 border border-red-200 bg-red-50 flex items-center gap-2"><Ico n="reset" s={16} /> Reset</button>
           </div>
         </Card>
 
@@ -188,7 +188,7 @@ export default function Player({ attemptId, initialReview, go }) {
           <div className="f3d mt-3 px-5 py-3 flex items-center gap-3 text-sm font-bold text-violet-700"
             style={{ background: "linear-gradient(90deg,#ede9fe,#f5f1fe)" }}>
             <span>◉ Review Mode: viewing {ex.indices.length} {ex.review.toLowerCase()} question(s)</span>
-            <button onClick={ex.exitReview} className="ml-auto f3d-btn f3d-btn-violet rounded-full px-4 py-1.5 text-xs font-bold">Exit review ✕</button>
+            <button onClick={ex.exitReview} className="ml-auto f3d-btn f3d-btn-violet rounded-full px-4 py-1.5 text-xs font-bold flex items-center gap-1.5">Exit review <Ico n="x" s={12} /></button>
           </div>
         )}
 
@@ -212,7 +212,8 @@ export default function Player({ attemptId, initialReview, go }) {
           <Card float className="p-5 max-lg:hidden">{palette}</Card>
           <div className="lg:hidden">
             <button onClick={() => setPaletteOpen((o) => !o)} style={{ "--neon": "#8b5cf6" }}
-              className="neon w-full f3d-pill px-5 py-3 text-sm font-bold">▦ Question Palette {paletteOpen ? "▾" : "▸"}</button>
+              className="neon w-full f3d-pill px-5 py-3 text-sm font-bold flex items-center justify-center gap-2">
+              Question Palette <Ico n="chevD" s={15} className={paletteOpen ? "rotate-180 transition-transform" : "transition-transform"} /></button>
             {paletteOpen && <Card className="mt-2.5 p-5">{palette}</Card>}
           </div>
 
@@ -232,8 +233,8 @@ export default function Player({ attemptId, initialReview, go }) {
                     </span>
                     <b className="ml-auto text-[14px]">Question {pos >= 0 ? pos + 1 : "–"} of {ex.indices.length}</b>
                     <span className="flex gap-2">
-                      <button onClick={() => ex.step(-1)} style={{ "--neon": "#8b5cf6" }} className="neon w-10 h-10 rounded-xl f3d-pill font-extrabold">‹</button>
-                      <button onClick={() => ex.step(1)} style={{ "--neon": "#8b5cf6" }} className="neon w-10 h-10 rounded-xl f3d-pill font-extrabold">›</button>
+                      <button onClick={() => ex.step(-1)} style={{ "--neon": "#8b5cf6" }} className="neon w-10 h-10 rounded-xl f3d-pill flex items-center justify-center" title="Previous question"><Ico n="chevL" s={18} /></button>
+                      <button onClick={() => ex.step(1)} style={{ "--neon": "#8b5cf6" }} className="neon w-10 h-10 rounded-xl f3d-pill flex items-center justify-center" title="Next question"><Ico n="chevR" s={18} /></button>
                     </span>
                   </div>
                   <p className="mt-4 text-[16.5px] leading-relaxed font-medium">Q{q.global_no}. {q.question}</p>
@@ -241,7 +242,7 @@ export default function Player({ attemptId, initialReview, go }) {
                   {/* instant feedback banner (D:\WEB bannerStatus) */}
                   {st.answered && (
                     <div className={`mt-3 rounded-2xl px-4 py-2.5 text-sm font-bold flex items-center gap-2 page-in ${st.correct ? "bg-emerald-50 text-emerald-600 border border-emerald-200" : "bg-red-50 text-red-600 border border-red-200"}`}>
-                      {st.correct ? "✓ Correct" : `✗ Wrong — correct answer: ${q.correct_answer}`}
+                      {st.correct ? <><Ico n="check" s={16} /> Correct</> : <><Ico n="x" s={16} /> Wrong — correct answer: {q.correct_answer}</>}
                     </div>
                   )}
 
@@ -262,8 +263,8 @@ export default function Player({ attemptId, initialReview, go }) {
                           </span>
                           <span className="w-9 h-9 rounded-lg bg-[var(--v-bg)] border border-[var(--v-line)] font-extrabold flex items-center justify-center shrink-0">{k}</span>
                           <span className="text-[15px] font-medium">{q.options[k]}</span>
-                          {locked && isRight && <span className="ml-auto text-emerald-500 font-extrabold">✓</span>}
-                          {locked && picked && !isRight && <span className="ml-auto text-red-500 font-extrabold">✗</span>}
+                          {locked && isRight && <span className="ml-auto text-emerald-500 font-extrabold"><Ico n="check" s={18} /></span>}
+                          {locked && picked && !isRight && <span className="ml-auto text-red-500 font-extrabold"><Ico n="x" s={18} /></span>}
                         </button>
                       );
                     })}
@@ -271,7 +272,7 @@ export default function Player({ attemptId, initialReview, go }) {
 
                   <button onClick={() => setExplainOpen((o) => !o)} style={{ "--neon": "#f59e0b" }}
                     className="neon mt-4 rounded-xl px-4 py-2.5 text-sm font-bold f3d-pill flex items-center gap-2">
-                    💡 Explanation <span className={`transition-transform ${explainOpen ? "rotate-180" : ""}`}>▾</span>
+                    💡 Explanation <Ico n="chevD" s={15} className={explainOpen ? "rotate-180 transition-transform" : "transition-transform"} />
                   </button>
                   {explainOpen && (
                     <div className="mt-2.5 rounded-2xl border border-amber-200 bg-amber-50/60 p-4 text-sm leading-relaxed page-in">
@@ -287,14 +288,14 @@ export default function Player({ attemptId, initialReview, go }) {
             {/* FOOTER ACTIONS */}
             <div className="mt-3.5 flex items-center justify-center gap-3 flex-wrap">
               <button onClick={ex.clear} style={{ "--neon": "#64748b" }}
-                className="neon rounded-xl px-5 py-3.5 text-[13.5px] font-bold f3d-pill flex gap-2 items-center">🧹 Clear Response</button>
+                className="neon rounded-xl px-5 py-3.5 text-[13.5px] font-bold f3d-pill flex gap-2 items-center"><Ico n="x" s={15} /> Clear Response</button>
               <button onClick={ex.toggleMark} style={{ "--neon": "#8b5cf6" }}
                 className={`neon rounded-xl px-5 py-3.5 text-[13.5px] font-bold f3d-pill flex gap-2 items-center ${st?.marked ? "!bg-violet-600 !text-white !border-transparent" : ""}`}>
-                <span className={st?.marked ? "" : "text-violet-600"}>★</span> {st?.marked ? "Marked ✓" : "Mark for Review"}</button>
+                <span className={st?.marked ? "" : "text-violet-600"}><Ico n="star" s={15} /></span> {st?.marked ? "Marked" : "Mark for Review"}</button>
               <button onClick={() => ex.step(1)} className="f3d-btn f3d-btn-violet rounded-xl px-6 py-3.5 text-[13.5px] font-bold flex gap-2 items-center">
-                Save &amp; Next →</button>
+                Save &amp; Next <Ico n="arrowR" s={15} /></button>
               <button onClick={() => go("result", { attemptId })} className="f3d-btn f3d-btn-green rounded-xl px-6 py-3.5 text-[13.5px] font-bold flex gap-2 items-center">
-                ➤ Submit Test</button>
+                <Ico n="arrowR" s={15} /> Submit Test</button>
             </div>
           </div>
         </div>

@@ -24,10 +24,21 @@ const P = {
   flag: <><path d="M5 21V4" /><path d="M5 4h12l-2.5 4L17 12H5" /></>,
   star: <path d="m12 3 2.7 5.8 6.3.8-4.6 4.3 1.2 6.1-5.6-3.1-5.6 3.1 1.2-6.1L3 9.6l6.3-.8L12 3Z" />,
   pie: <><path d="M12 3v9h9" /><circle cx="12" cy="12" r="8" /></>,
+  chevL: <path d="m14 6-6 6 6 6" />,
+  chevR: <path d="m10 6 6 6-6 6" />,
+  chevU: <path d="m6 14 6-6 6 6" />,
+  chevD: <path d="m6 10 6 6 6-6" />,
+  dots: <><circle cx="5" cy="12" r="1.9" fill="currentColor" stroke="none" /><circle cx="12" cy="12" r="1.9" fill="currentColor" stroke="none" /><circle cx="19" cy="12" r="1.9" fill="currentColor" stroke="none" /></>,
+  dotsV: <><circle cx="12" cy="5" r="1.9" fill="currentColor" stroke="none" /><circle cx="12" cy="12" r="1.9" fill="currentColor" stroke="none" /><circle cx="12" cy="19" r="1.9" fill="currentColor" stroke="none" /></>,
+  arrowR: <><path d="M4 12h15" /><path d="m13 6 6 6-6 6" /></>,
+  plus: <path d="M12 5v14M5 12h14" />,
+  reset: <><path d="M20 12a8 8 0 1 1-2.34-5.66" /><path d="M20 4v5h-5" /></>,
+  logout: <><path d="M14 4h4a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-4" /><path d="M10 8l-4 4 4 4" /><path d="M6 12h10" /></>,
 };
-export const Ico = ({ n, s = 20, fill = false }) => (
+export const Ico = ({ n, s = 20, fill = false, className = "" }) => (
   <svg width={s} height={s} viewBox="0 0 24 24" fill={fill ? "currentColor" : "none"}
-    stroke="currentColor" strokeWidth={fill ? 0 : 1.9} strokeLinecap="round" strokeLinejoin="round">
+    stroke="currentColor" strokeWidth={fill ? 0 : 1.9} strokeLinecap="round" strokeLinejoin="round"
+    className={`inline-block shrink-0 ${className}`} aria-hidden>
     {P[n]}
   </svg>
 );
@@ -176,7 +187,7 @@ export const Modal = ({ title, okText = "Create", danger, onOk, onClose, childre
   <div className="fixed inset-0 z-[80] flex items-center justify-center p-[18px] page-in"
     style={{ background: "rgba(20,26,45,.45)", backdropFilter: "blur(4px)" }}
     onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-    <div className="f3d w-[min(460px,100%)] p-6" onClick={(e) => e.stopPropagation()}>
+    <div className="f3d pop-in w-[min(460px,100%)] p-6" onClick={(e) => e.stopPropagation()}>
       <h3 className="text-lg font-extrabold">{title}</h3>
       {children}
       <div className="mt-5 flex gap-2.5 justify-end">
@@ -204,8 +215,9 @@ export const ToastHost = () => {
   return (
     <div key={toastKey} className="f3d-toast show pl-[22px] pr-2 py-2 rounded-full text-[13.5px] font-semibold flex items-center gap-2 max-w-[min(480px,92vw)]">
       <span className="pl-1 truncate">{toast}</span>
-      <button onClick={dismissToast} title="Dismiss"
-        className="w-7 h-7 rounded-full shrink-0 bg-white/15 hover:bg-white/30 text-white font-extrabold text-xs transition-colors">✕</button>
+      <button onClick={dismissToast} title="Dismiss" className="w-7 h-7 rounded-full shrink-0 bg-white/15 hover:bg-white/30 text-white transition-colors flex items-center justify-center">
+        <Ico n="x" s={12} />
+      </button>
     </div>
   );
 };

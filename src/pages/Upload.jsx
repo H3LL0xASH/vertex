@@ -57,8 +57,8 @@ export default function Upload({ go }) {
             <input ref={fileRef} type="file" accept="application/json,.json" hidden
               onChange={(e) => { ingest(e.target.files[0]); e.target.value = ""; }} />
           </div>
-          <button onClick={() => go("library")} className="f3d-btn f3d-btn-violet mt-5 rounded-xl px-6 py-3.5 text-sm font-bold">
-            Open Library →
+          <button onClick={() => go("library")} className="f3d-btn f3d-btn-violet mt-5 rounded-xl px-6 py-3.5 text-sm font-bold flex items-center gap-2">
+            Open Library <Ico n="arrowR" s={15} />
           </button>
         </Card>
       </main>

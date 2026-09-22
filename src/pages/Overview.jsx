@@ -145,14 +145,14 @@ export default function Overview({ go }) {
               <div><h3 className="text-[19px] font-extrabold">This week's momentum</h3>
                 <div className="text-[13px] text-[var(--v-muted)] mt-1">Attempts per day, last 7 days</div></div>
               <button onClick={() => showToast(`Metric: Attempts per day (${weekTotal} this week)`)} style={{ "--neon": "#8b5cf6" }}
-                className="neon ml-auto border border-[var(--v-line)] rounded-full px-3.5 py-2 text-[13px] font-semibold f3d-pill">Attempts ▾</button>
+                className="neon ml-auto border border-[var(--v-line)] rounded-full px-3.5 py-2 text-[13px] font-semibold f3d-pill flex items-center gap-1.5">Attempts <Ico n="chevD" s={13} /></button>
             </div>
             <div className="mt-2.5">
               {weekTotal === 0 ? (
                 <div className="text-center py-8">
                   <p className="text-sm text-[var(--v-muted)]">No attempts this week yet.</p>
                   <button onClick={() => go("library")}
-                    className="f3d-btn f3d-btn-violet mt-3 rounded-full px-5 py-2.5 text-[13px] font-bold">Start practicing →</button>
+                    className="f3d-btn f3d-btn-violet mt-3 rounded-full px-5 py-2.5 text-[13px] font-bold flex items-center gap-2">Start practicing <Ico n="arrowR" s={13} /></button>
                 </div>
               ) : (
                 <ScoreLine data={week.map((d) => ({ d: d.label, v: d.count }))} max={maxWeek} height={220} tip={-1} />
@@ -167,7 +167,7 @@ export default function Overview({ go }) {
             <div><h3 className="text-[19px] font-extrabold">Recent tests</h3>
               <div className="text-[13px] text-[var(--v-muted)] mt-1">Resume where you stopped, or review a finished attempt</div></div>
             <button onClick={() => showToast(stats.total ? `Showing all ${stats.total} attempts` : "No attempts yet — visit the Library.")} style={{ "--neon": "#8b5cf6" }}
-              className="neon ml-auto border border-[var(--v-line)] rounded-full px-[18px] py-2.5 text-[13px] font-bold f3d-pill">View all →</button>
+              className="neon ml-auto border border-[var(--v-line)] rounded-full px-[18px] py-2.5 text-[13px] font-bold f3d-pill flex items-center gap-2">View all <Ico n="arrowR" s={13} /></button>
           </div>
           {filtered.length === 0 && (
             <div className="mt-4 text-center py-8 rounded-[18px] border-[1.5px] border-dashed border-[#c9d2e4]">
@@ -175,7 +175,7 @@ export default function Overview({ go }) {
                 {stats.total === 0 ? "No tests yet — your attempts will appear here." : "No tests match your search."}</p>
               {stats.total === 0 && (
                 <button onClick={() => go("library")}
-                  className="f3d-btn f3d-btn-violet mt-3 rounded-full px-5 py-2.5 text-[13px] font-bold">Open Library →</button>
+                  className="f3d-btn f3d-btn-violet mt-3 rounded-full px-5 py-2.5 text-[13px] font-bold flex items-center gap-2">Open Library <Ico n="arrowR" s={13} /></button>
               )}
             </div>
           )}
@@ -200,9 +200,9 @@ export default function Overview({ go }) {
                     : <span className="bg-[#fff4e8] border border-[#ffd9b8] text-[#b45309] text-xs font-bold px-3.5 py-2 rounded-full">In progress</span>}
                   {done
                     ? <button onClick={() => go("result", { attemptId: a.id })}
-                      className="f3d-btn f3d-btn-violet px-[22px] py-3 rounded-full text-[13.5px] font-bold flex gap-2 items-center">Review →</button>
+                      className="f3d-btn f3d-btn-violet px-[22px] py-3 rounded-full text-[13.5px] font-bold flex gap-2 items-center">Review <Ico n="arrowR" s={14} /></button>
                     : <button onClick={() => go("player", { attemptId: a.id })}
-                      className="f3d-btn f3d-btn-violet px-[22px] py-3 rounded-full text-[13.5px] font-bold flex gap-2 items-center">Resume →</button>}
+                      className="f3d-btn f3d-btn-violet px-[22px] py-3 rounded-full text-[13.5px] font-bold flex gap-2 items-center">Resume <Ico n="arrowR" s={14} /></button>}
                 </div>
               </div>
             );

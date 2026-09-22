@@ -114,7 +114,7 @@ export default function Analytics({ go }) {
               <div className="ml-auto relative">
                 <button onClick={() => setRangeOpen((o) => !o)} style={{ "--neon": "#8b5cf6" }}
                   className="neon rounded-full px-5 py-3 text-[13.5px] font-bold f3d-pill flex gap-2 items-center">
-                  🗓 {range.label} <span className="text-[var(--v-muted)]">▾</span>
+                  <Ico n="cal" s={16} /> {range.label} <Ico n="chevD" s={13} />
                 </button>
                 {rangeOpen && (
                   <div className="f3d absolute right-0 top-[54px] z-30 min-w-[170px] p-1.5 !rounded-[14px]">
@@ -167,23 +167,23 @@ export default function Analytics({ go }) {
                   </div>
                 </div>
                 <div className="mt-5 flex gap-2.5 flex-wrap">
-                  <span className="text-[13px] font-bold px-4 py-2 rounded-full bg-violet-100 text-violet-700 border border-violet-200">🗎 {stats.total} attempts</span>
-                  <span className="text-[13px] font-bold px-4 py-2 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200">✓ {stats.completed} completed</span>
-                  <span className="text-[13px] font-bold px-4 py-2 rounded-full bg-orange-50 text-orange-600 border border-orange-200">▷ {stats.inProgress} in progress</span>
+                  <span className="text-[13px] font-bold px-4 py-2 rounded-full bg-violet-100 text-violet-700 border border-violet-200 flex items-center gap-1.5"><Ico n="doc" s={13} /> {stats.total} attempts</span>
+                  <span className="text-[13px] font-bold px-4 py-2 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center gap-1.5"><Ico n="check" s={13} /> {stats.completed} completed</span>
+                  <span className="text-[13px] font-bold px-4 py-2 rounded-full bg-orange-50 text-orange-600 border border-orange-200 flex items-center gap-1.5"><Ico n="play" s={11} /> {stats.inProgress} in progress</span>
                 </div>
               </Card>
 
               <Card float delay={0.9} className="p-[22px]">
                 <div className="flex items-start gap-3">
                   <div><h3 className="text-[19px] font-extrabold">Score over time</h3>
-                    <div className="text-[13px] text-[var(--v-muted)] mt-1">Completed tests, oldest → newest — {range.label.toLowerCase()}</div></div>
+                    <div className="text-[13px] text-[var(--v-muted)] mt-1">Completed tests, oldest to newest — {range.label.toLowerCase()}</div></div>
                 </div>
                 <div className="mt-3">
                   {series.length === 0 ? (
                     <div className="text-center py-10">
                       <p className="text-sm text-[var(--v-muted)]">No completed tests in this range yet.</p>
                       <button onClick={() => go("library")}
-                        className="f3d-btn f3d-btn-violet mt-3 rounded-full px-5 py-2.5 text-[13px] font-bold">Practice →</button>
+                        className="f3d-btn f3d-btn-violet mt-3 rounded-full px-5 py-2.5 text-[13px] font-bold flex items-center gap-2">Practice <Ico n="arrowR" s={13} /></button>
                     </div>
                   ) : (
                     <ScoreLine data={series.map((p) => ({ d: p.d, v: p.v }))} max={100} height={210} tip={bestIdx} tipLabel={series[bestIdx]?.title || "Best"} />
@@ -202,14 +202,14 @@ export default function Analytics({ go }) {
                     : `You've completed ${completionRate}% of your attempts${topics[0] ? `, and “${topics[0].topic}” is your leakiest topic at ${topics[0].pct}%.` : "."}`}
                 </p>
               </div>
-              <button onClick={() => setShowReco((s) => !s)}
+                <button onClick={() => setShowReco((s) => !s)}
                 className="f3d-btn f3d-btn-violet rounded-xl px-6 py-3.5 text-sm font-bold flex gap-2 items-center">
-                {showReco ? "Hide recommendations" : "View recommendations"} →
+                {showReco ? "Hide recommendations" : "View recommendations"} <Ico n="arrowR" s={14} />
               </button>
               {showReco && (
                 <div className="basis-full grid md:grid-cols-3 gap-2.5 page-in">
                   {(stats.total === 0
-                    ? [["Link a dataset", "Library → any chapter → Upload JSON or the sample set."],
+                    ? [["Link a dataset", "Library, then any chapter, then Upload JSON or the sample set."],
                        ["Take the sample test", "12 real Profit & Loss questions, ~10 minutes."],
                        ["Come back here", "Trends, weak topics and pace fill in automatically."]]
                     : [
@@ -242,7 +242,7 @@ export default function Analytics({ go }) {
               <div className="text-center py-10">
                 <p className="text-sm text-[var(--v-muted)]">No subjects yet.</p>
                 <button onClick={() => go("library")}
-                  className="f3d-btn f3d-btn-violet mt-3 rounded-full px-5 py-2.5 text-[13px] font-bold">Open Library →</button>
+                  className="f3d-btn f3d-btn-violet mt-3 rounded-full px-5 py-2.5 text-[13px] font-bold flex items-center gap-2">Open Library <Ico n="arrowR" s={13} /></button>
               </div>
             )}
             <div className="mt-4 space-y-5">
@@ -283,7 +283,7 @@ export default function Analytics({ go }) {
               <div className="text-center py-10">
                 <p className="text-sm text-[var(--v-muted)]">Answer questions to reveal your weak topics.</p>
                 <button onClick={() => go("library")}
-                  className="f3d-btn f3d-btn-violet mt-3 rounded-full px-5 py-2.5 text-[13px] font-bold">Practice →</button>
+                  className="f3d-btn f3d-btn-violet mt-3 rounded-full px-5 py-2.5 text-[13px] font-bold flex items-center gap-2">Practice <Ico n="arrowR" s={13} /></button>
               </div>
             ) : (
               <div className="mt-4 grid gap-2.5 md:grid-cols-2">
@@ -340,7 +340,7 @@ export default function Analytics({ go }) {
             <Card float className="mt-3.5 p-10 text-center page-in">
               <p className="text-sm text-[var(--v-muted)]">No timed tests yet — finish a test to see your pace.</p>
               <button onClick={() => go("library")}
-                className="f3d-btn f3d-btn-violet mt-3 rounded-full px-5 py-2.5 text-[13px] font-bold">Practice →</button>
+                className="f3d-btn f3d-btn-violet mt-3 rounded-full px-5 py-2.5 text-[13px] font-bold flex items-center gap-2">Practice <Ico n="arrowR" s={13} /></button>
             </Card>
           )
         )}

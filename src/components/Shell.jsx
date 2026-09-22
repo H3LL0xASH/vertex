@@ -14,17 +14,17 @@ export function Sidebar({ tab, go }) {
   return (
     <aside className={`${rail ? "w-[78px] px-2.5 items-center" : "w-[248px] px-4"} shrink-0 max-lg:hidden border-r border-[var(--v-line)] flex flex-col pt-[22px] pb-4 sticky top-0 h-screen overflow-hidden backdrop-blur-xl transition-all duration-300 relative`}
       style={{ background: "color-mix(in srgb, var(--v-card-hi) 78%, transparent)" }}>
-      {/* collapse arrow on the edge */}
+      {/* slim edge toggle — hugs the border, blends with the UI */}
       <button onClick={toggleNav} title={rail ? "Expand sidebar" : "Collapse to icons"} style={{ "--neon": "#8b5cf6" }}
-        className="neon absolute -right-[17px] top-[64px] z-20 w-[34px] h-[52px] rounded-full f3d-pill flex items-center justify-center text-[15px] font-extrabold text-violet-600">
-        {rail ? "›" : "‹"}
+        className="neon absolute -right-[11px] top-[26px] z-20 w-[22px] h-[46px] rounded-full f3d-pill flex items-center justify-center text-violet-600">
+        <Ico n={rail ? "chevR" : "chevL"} s={13} />
       </button>
       <div className={`flex items-center gap-2.5 px-2 ${rail ? "!px-0 justify-center" : ""}`}>
         <span className="f3d-orb rounded-[14px] shrink-0" style={{ width: 44, height: 44, background: "linear-gradient(180deg,#8b9ff0,#5b63e8)" }}>
           <span className="font-brand font-extrabold text-white text-[22px]">V</span>
         </span>
         {!rail && (
-          <span>
+          <span className="overflow-hidden whitespace-nowrap">
             <span className="font-brand font-extrabold text-[26px] tracking-tight block leading-none">vertex</span>
             <span className="text-[9px] tracking-[0.4em] text-[var(--v-muted)] font-semibold">EXAM SIMULATOR</span>
           </span>
@@ -43,7 +43,7 @@ export function Sidebar({ tab, go }) {
               <Ico n={n.icon} s={20} />
             </span>
             {!rail && (
-              <span>
+              <span className="overflow-hidden whitespace-nowrap">
                 <span className={`text-[14.5px] font-bold ${tab === n.k ? "text-violet-700" : ""}`}>{n.t}</span>
                 <div className="text-xs text-[var(--v-muted)] mt-0.5">{n.s}</div>
               </span>
@@ -53,8 +53,8 @@ export function Sidebar({ tab, go }) {
       </nav>
       {rail ? (
         <div className="mt-auto flex flex-col items-center gap-3">
-          <span className="f3d-orb rounded-full" style={{ width: 44, height: 44, background: "linear-gradient(180deg,#f9a8b0,#e56570)" }}>
-            <span className="font-brand font-extrabold text-white text-lg">→</span>
+          <span className="f3d-orb rounded-full" style={{ width: 44, height: 44, background: "linear-gradient(180deg,#f9a8b0,#e56570)", color: "#fff" }}>
+            <Ico n="arrowR" s={20} />
           </span>
         </div>
       ) : (
@@ -69,7 +69,7 @@ export function Sidebar({ tab, go }) {
           </div>
           <div className="f3d f3d-float p-4 flex items-center gap-2.5 text-[15px] leading-snug font-medium">
             <span>Practice<br />smarter.<br />Go beyond.</span>
-            <span className="ml-auto w-9 h-9 rounded-full f3d-pill flex items-center justify-center shrink-0">→</span>
+            <span className="ml-auto w-9 h-9 rounded-full f3d-pill flex items-center justify-center shrink-0 text-[var(--v-ink)]"><Ico n="arrowR" s={16} /></span>
           </div>
         </>
       )}
@@ -111,10 +111,11 @@ export function Topbar({ searchPh, search, setSearch, onLibrary }) {
               {user.charAt(0).toUpperCase()}
             </span>
             <span className="max-[480px]:hidden"><b className="text-sm block leading-tight">{user}</b><small className="text-[10.5px] tracking-wider text-violet-600 font-extrabold">BRONZE</small></span>
-            <span className="max-[480px]:hidden text-xs text-[var(--v-muted)]">▼</span>
+            <span className="max-[480px]:hidden text-[var(--v-muted)] flex"><Ico n="chevD" s={12} /></span>
           </div>
-          <div className="absolute right-0 top-[60px] f3d min-w-[170px] overflow-hidden hidden group-hover:block z-50 !rounded-[14px]">
-            <button onClick={logout} className="w-full px-4 py-3 text-left text-[13.5px] font-semibold hover:bg-black/5">⎋ Logout</button>
+          <div className="absolute right-0 top-[60px] f3d pop-in min-w-[170px] overflow-hidden hidden group-hover:block z-50 !rounded-[14px]">
+            <button onClick={logout} className="w-full px-4 py-3 text-left text-[13.5px] font-semibold hover:bg-black/5 flex items-center gap-2">
+              <Ico n="logout" s={16} /> Logout</button>
           </div>
         </div>
       </div>
