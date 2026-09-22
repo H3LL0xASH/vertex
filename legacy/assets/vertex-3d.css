@@ -1,0 +1,131 @@
+/* ============================================================
+   VERTEX 3D DESIGN SYSTEM  — shared by ALL pages
+   Login (index.html), Dashboard (dashboard.html) + upcoming pages
+   Rules: everything is tactile 3D. No flat fills.
+   - surfaces: dual neumorphic shadows (dark + light)
+   - depth: layered outer shadows + inset top-highlight + inset bottom-shade
+   - glossy: radial highlight at 30% 28% + floor shadow ellipse
+   - text-3d: stacked extrude shadows, never a single drop shadow
+   ============================================================ */
+:root{
+  --v-bg:#f5f7fc;
+  --v-ink:#121828;
+  --v-muted:#8a90a5;
+  --v-line:#e6eaf3;
+  --v-card:#ffffff;
+  --v-rose-1:#f6c1c4;
+  --v-rose-2:#e99aa1;
+  --v-rose-3:#cf707a;
+  --v-blue-1:#d7e5f9;
+  --v-blue-2:#9db6e0;
+  --v-red-1:#ff5d4e;
+  --v-red-2:#ef232f;
+  --v-red-3:#cf1424;
+
+  /* 3D shadow stack */
+  --v3-out-sm: 6px 8px 16px rgba(45,55,90,.14), -6px -6px 14px rgba(255,255,255,.95);
+  --v3-out-md: 12px 18px 34px rgba(45,55,90,.18), -10px -12px 26px rgba(255,255,255,.95);
+  --v3-out-lg: 20px 30px 60px rgba(60,70,110,.25), -14px -16px 40px rgba(255,255,255,.9);
+  --v3-in: inset 3px 4px 9px rgba(170,182,210,.55), inset -4px -5px 10px rgba(255,255,255,.95);
+  --v3-in-soft: inset 2px 2px 6px rgba(170,182,210,.4), inset -2px -2px 6px rgba(255,255,255,.9);
+  --v3-glow-red: 0 20px 38px rgba(229,30,45,.38), 0 8px 16px rgba(229,30,45,.28);
+  --v3-glow-pink: 0 14px 30px rgba(217,122,130,.35);
+
+  --v-font:'Inter',system-ui,sans-serif;
+  --v-brand:'Plus Jakarta Sans','Inter',sans-serif;
+}
+
+/* ---------- 3D extruded display text (hero "vertex") ---------- */
+.v3-text{
+  font-family:var(--v-brand);
+  font-weight:800;
+  letter-spacing:-.06em;
+  color:#f3f6fb;
+  text-shadow:
+    0 1px 0 #ffffff,
+    -1px 2px 0 #edf0f7,
+    -2px 3px 0 #dde3f0,
+    -3px 4px 0 #cdd5e8,
+    -4px 5px 0 #bcc6dc,
+    -5px 6px 0 #adb8d1,
+    -6px 8px 4px rgba(80,90,130,.18),
+    -8px 14px 22px rgba(80,90,130,.32),
+    0 22px 40px rgba(80,90,130,.22);
+}
+
+/* ---------- glossy 3D sphere ---------- */
+.v3-sphere{
+  position:absolute;border-radius:50%;
+  background:radial-gradient(circle at 32% 28%, #ffffff 0%, #ffe9e9 12%, #f7b6bb 32%, #d9848c 58%, #efa9ae 80%, #e3a0a5 100%);
+  box-shadow:
+    18px 28px 45px rgba(90,90,130,.30),
+    inset -10px -14px 24px rgba(150,60,70,.28),
+    inset 9px 11px 20px rgba(255,255,255,.95);
+}
+.v3-sphere::after{
+  content:'';position:absolute;left:22%;top:15%;width:30%;height:23%;
+  background:radial-gradient(circle,rgba(255,255,255,.98),rgba(255,255,255,0));
+  border-radius:50%;filter:blur(1px);
+}
+.v3-floor-shadow{
+  position:absolute;border-radius:50%;filter:blur(16px);
+  background:rgba(90,95,130,.22);
+}
+
+/* ---------- neumorphic 3D pill (inputs) ---------- */
+.v3-pill{
+  background:linear-gradient(180deg,#f8fafd 0%,#eef1f7 100%);
+  border:1px solid rgba(255,255,255,.95);
+  border-radius:999px;
+  box-shadow:var(--v3-out-md), var(--v3-in-soft);
+}
+
+/* ---------- glossy 3D red button ---------- */
+.v3-btn-red{
+  position:relative;overflow:hidden;isolation:isolate;
+  background:linear-gradient(180deg,var(--v-red-1) 0%,var(--v-red-2) 55%,var(--v-red-3) 100%);
+  border:0;border-radius:999px;color:#fff;cursor:pointer;
+  box-shadow:var(--v3-glow-red), inset 0 2px 2px rgba(255,255,255,.65), inset 0 -3px 8px rgba(0,0,0,.22);
+  transition:transform .16s ease, box-shadow .16s ease, filter .16s ease;
+}
+.v3-btn-red::before{ /* top glass highlight = the 3D bevel */
+  content:'';position:absolute;left:6%;right:6%;top:4%;height:46%;z-index:-0;
+  border-radius:999px;background:linear-gradient(180deg,rgba(255,255,255,.55),rgba(255,255,255,0));
+  pointer-events:none;
+}
+.v3-btn-red:hover{transform:translateY(-2px);filter:brightness(1.04)}
+.v3-btn-red:active{transform:translateY(1px) scale(.985);
+  box-shadow:0 10px 20px rgba(229,30,45,.3), inset 0 2px 8px rgba(0,0,0,.3)}
+
+/* ---------- 3D avatar (outer neu ring + rose core) ---------- */
+.v3-avatar-ring{
+  border-radius:50%;padding:8px;
+  background:linear-gradient(180deg,#f2f4f9,#e3e8f2);
+  box-shadow:16px 16px 34px #cfd7e8, -14px -14px 30px #ffffff, inset 2px 2px 6px rgba(255,255,255,.9);
+}
+.v3-avatar-core{
+  border-radius:50%;display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative;
+  background:radial-gradient(circle at 35% 28%, #f7c6ca 0%, #ec9fa6 30%, #d87f88 62%, #c86a74 100%);
+  box-shadow:inset 7px 9px 16px rgba(255,255,255,.55), inset -9px -11px 20px rgba(120,30,40,.28);
+}
+.v3-avatar-core::before{
+  content:'';position:absolute;left:18%;top:8%;width:64%;height:34%;border-radius:50%;
+  background:radial-gradient(ellipse,rgba(255,255,255,.7),transparent 70%);
+}
+
+/* ---------- 3D card ---------- */
+.v3-card{
+  background:var(--v-card);border:1px solid rgba(255,255,255,.9);
+  border-radius:22px;box-shadow:var(--v3-out-md);
+}
+
+/* ---------- dark theme remap (keep 3D, just relight) ---------- */
+[data-theme="dark"]{
+  --v-bg:#0d1322; --v-ink:#eef2ff; --v-muted:#8f99b5;
+  --v-line:#24314f; --v-card:#182034;
+  --v3-out-sm:6px 8px 16px rgba(0,0,0,.5), -4px -4px 12px rgba(255,255,255,.05);
+  --v3-out-md:12px 18px 34px rgba(0,0,0,.5), -6px -6px 18px rgba(255,255,255,.05);
+  --v3-out-lg:20px 30px 60px rgba(0,0,0,.55), -8px -8px 30px rgba(255,255,255,.05);
+  --v3-in:inset 3px 4px 9px rgba(0,0,0,.5), inset -3px -3px 8px rgba(255,255,255,.06);
+  --v3-in-soft:inset 2px 2px 6px rgba(0,0,0,.5), inset -2px -2px 6px rgba(255,255,255,.06);
+}

@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>vertex — Test Library</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/vertex-3d.css">
+<link rel="stylesheet" href="src/styles/library.css">
+</head>
+<body>
+<div class="app">
+  <!-- SIDEBAR (wired by src/js/layout.js via data-nav) -->
+  <aside class="sidebar">
+    <div class="logo">vertex</div>
+    <div class="logo-sub">EXAM SIMULATOR</div>
+    <div class="ws">WORKSPACE</div>
+    <nav class="nav">
+      <button class="nav-item" data-nav="overview">
+        <span class="nav-ico"><svg viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/><path d="M9 21v-6h6v6"/></svg></span>
+        <span><span class="nav-t" style="font-weight:600">Overview</span><div class="nav-s">Your command deck</div></span>
+      </button>
+      <button class="nav-item active" data-nav="library">
+        <span class="nav-ico"><svg viewBox="0 0 24 24"><path d="M4 19V6a2 2 0 0 1 2-2h13v13H6a2 2 0 0 0-2 2zm0 0a2 2 0 0 0 2 2h13"/></svg></span>
+        <span><span class="nav-t">Library</span><div class="nav-s">Tests &amp; subjects</div></span>
+      </button>
+      <button class="nav-item" data-nav="analytics">
+        <span class="nav-ico"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 15v-4M12 17V7M17 13v-2"/></svg></span>
+        <span><span class="nav-t" style="font-weight:600">Analytics</span><div class="nav-s">Mastery &amp; trends</div></span>
+      </button>
+      <button class="nav-item" data-nav="upload">
+        <span class="nav-ico"><svg viewBox="0 0 24 24"><path d="M12 16V4m0 0 4 4m-4-4L8 8"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg></span>
+        <span><span class="nav-t" style="font-weight:600">Upload dataset</span><div class="nav-s">Add your own data</div></span>
+      </button>
+    </nav>
+    <div class="side-card">Practice smarter<br>Go beyond. <span class="go">→</span></div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+    <div class="topbar">
+      <div class="search">
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input id="searchInput" placeholder="Search subjects, chapters or commands..." />
+        <kbd>⌘ K</kbd>
+      </div>
+      <div class="top-actions">
+        <button class="pill-btn streak" id="streakBtn">🔥 1 day</button>
+        <button class="pill-btn hide-m" id="darkBtn">🌙 Dark</button>
+        <button class="pill-btn hide-m" id="libBtn">📖 Library</button>
+        <div class="profile" id="profile">
+          <span class="avatar-a" id="avatarLetter">A</span>
+          <span><b id="userName">admin</b><small>BRONZE</small></span>
+          <span style="color:var(--v-muted);font-size:12px">▼</span>
+          <div class="profile-menu"><button id="logoutBtn">⎋ &nbsp;Logout</button></div>
+        </div>
+      </div>
+    </div>
+
+    <section class="hero">
+      <div>
+        <h1>Test Library</h1>
+        <p>Subjects, chapters and datasets — everything needed for practice lives here.</p>
+      </div>
+      <div class="hero-art" aria-hidden="true">
+        <div class="ball"></div>
+        <div class="book b-bottom"></div>
+        <div class="book b-top"></div>
+      </div>
+      <button class="btn-upload" id="uploadJsonBtn">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4m0 0 4 4m-4-4L8 8"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>
+        Upload JSON
+      </button>
+    </section>
+
+    <div class="toolbar">
+      <button class="btn-primary" id="addSubjectBtn"><span style="font-size:16px">＋</span> Add Subject</button>
+      <button class="btn-ghost" id="addChaptersBtn"><span style="font-size:16px">＋</span> Add Chapters</button>
+      <div class="filter">
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input id="filterInput" placeholder="Filter subjects / chapters..." />
+      </div>
+      <button class="btn-ghost" id="exportBtn">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v12m0 0 4-4m-4 4-4-4"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>
+        Export
+      </button>
+      <button class="btn-ghost" id="importBtn">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4m0 0 4 4m-4-4L8 8"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>
+        Import
+      </button>
+      <input type="file" id="fileInput" accept="application/json,.json" hidden />
+    </div>
+
+    <div id="subjectList"></div>
+    <div id="modalRoot"></div>
+  </main>
+</div>
+<div class="toast" id="toast"></div>
+
+<script src="src/data/seed.js"></script>
+<script src="src/js/store.js"></script>
+<script src="src/js/layout.js"></script>
+<script src="src/js/library.js"></script>
+</body>
+</html>
