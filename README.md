@@ -42,6 +42,7 @@ datasets, attempts) to one file and restore it anywhere:
 
 ## Docs
 
+- [`docs/RELEASE_NOTES.md`](docs/RELEASE_NOTES.md) - v1.0.0 release notes
 - [`docs/OVERVIEW.md`](docs/OVERVIEW.md) — product tour
 - [`docs/SETUP.md`](docs/SETUP.md) — development setup
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — code map, engine, storage
