@@ -83,8 +83,11 @@ body {
     inset 2px 2px 6px rgba(255, 255, 255, 0.9),
     inset -3px -4px 10px rgba(170, 182, 210, 0.28);
 }
-.f3d-float { animation: f3dFloat 7s ease-in-out infinite; }
-@keyframes f3dFloat { 0%, 100% { translate: 0 0; } 50% { translate: 0 -7px; } }
+.f3d-float { animation: f3dFloat 8.5s ease-in-out infinite; }
+@keyframes f3dFloat { 0%, 100% { translate: 0 0; } 50% { translate: 0 -6px; } }
+@media (prefers-reduced-motion: reduce) {
+  .f3d-float, .f3d-sphere { animation: none; }
+}
 
 /* ---------- neumorphic 3D pill ---------- */
 .f3d-pill {
@@ -279,6 +282,30 @@ input::placeholder, textarea::placeholder { color: var(--v-muted); opacity: 0.8;
 }
 .group\/expand:hover .beam { opacity: 1; transform: translateY(-50%) scaleX(1); }
 
+/* menu rows — no fill glow on hover, just the running neon trace.
+   Same neonRound comet every card already uses. */
+.trace-hover { position: relative; --neon: #8b5cf6; }
+.trace-hover::after {
+  content: ""; position: absolute; inset: 0; border-radius: 9px; padding: 1.5px;
+  pointer-events: none; opacity: 0;
+  background: conic-gradient(from var(--na, 0deg), transparent 0deg, transparent 285deg, var(--neon) 340deg, #ffffff 360deg);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  filter: drop-shadow(0 0 5px var(--neon));
+}
+@media (hover: hover) {
+  .trace-hover:hover::after { animation: neonRound 0.7s ease-out 1; }
+  .trace-hover:hover { background: color-mix(in srgb, var(--neon) 8%, transparent); }
+}
+/* locked glow — keeps a card lit while its ••• menu stays open */
+.neon-lock {
+  outline: 2px solid var(--neon, #8b5cf6) !important;
+  outline-offset: 2px;
+  filter: drop-shadow(0 0 12px var(--neon, #8b5cf6));
+}
+
 /* smooth tab switching via the View Transitions API (see App go()) */
 ::view-transition-old(root), ::view-transition-new(root) { animation-duration: 0.32s; }
 ::view-transition-old(root) { animation-name: vtOut; }
@@ -400,6 +427,39 @@ input::placeholder, textarea::placeholder { color: var(--v-muted); opacity: 0.8;
 /* hide scrollbars on carousels while keeping scroll */
 .no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
+/* slim UI-blended scrollbar for internal panels (palette, question card) */
+.scroll-slim { scrollbar-width: thin; scrollbar-color: rgba(139, 92, 246, 0.45) transparent; }
+.scroll-slim::-webkit-scrollbar { width: 8px; height: 8px; }
+.scroll-slim::-webkit-scrollbar-track { background: transparent; }
+.scroll-slim::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #c4b5fd, #8b5cf6);
+  border-radius: 999px; border: 2px solid transparent; background-clip: padding-box;
+}
+.scroll-slim::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #a78bfa, #7c3aed);
+  border: 2px solid transparent; background-clip: padding-box;
+}
+[data-theme="dark"] .scroll-slim { scrollbar-color: rgba(167, 139, 250, 0.55) transparent; }
+/* question-palette number buttons — theme aware (dark fixed) */
+.pal-btn { background: #ffffff; color: #475569; border: 1px solid rgba(0, 0, 0, 0.08); box-shadow: 0 4px 10px rgba(35, 45, 80, 0.1); }
+[data-theme="dark"] .pal-btn { background: #1c2547; color: #c7d0ee; border-color: rgba(148, 163, 255, 0.22); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4); }
+.pal-correct { background: linear-gradient(180deg, #34d399, #059669); color: #fff; border-color: transparent; box-shadow: 0 6px 14px rgba(16, 185, 129, 0.4); }
+.pal-wrong { background: linear-gradient(180deg, #f87171, #dc2626); color: #fff; border-color: transparent; box-shadow: 0 6px 14px rgba(220, 38, 38, 0.4); }
+.pal-current { background: linear-gradient(180deg, #a78bfa, #6d28d9); color: #fff; border-color: transparent; box-shadow: 0 6px 14px rgba(124, 58, 237, 0.45); }
+.pal-marked { color: #6d28d9; border-color: #a78bfa; }
+[data-theme="dark"] .pal-marked { color: #c4b5fd; border-color: #7c3aed; }
+.pal-visited { background: #fef3c7; color: #b45309; border-color: #fcd34d; box-shadow: 0 4px 10px rgba(217, 119, 6, 0.25); }
+[data-theme="dark"] .pal-visited { background: #3a2a10; color: #fcd34d; border-color: #92600e; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4); }
+/* dark must keep status gradients above the base navy (specificity fix) */
+[data-theme="dark"] .pal-correct { background: linear-gradient(180deg, #34d399, #059669); color: #fff; border-color: transparent; box-shadow: 0 6px 14px rgba(16, 185, 129, 0.45); }
+[data-theme="dark"] .pal-wrong { background: linear-gradient(180deg, #f87171, #dc2626); color: #fff; border-color: transparent; box-shadow: 0 6px 14px rgba(220, 38, 38, 0.45); }
+[data-theme="dark"] .pal-current { background: linear-gradient(180deg, #a78bfa, #6d28d9); color: #fff; border-color: transparent; box-shadow: 0 6px 14px rgba(124, 58, 237, 0.5); }
+[data-theme="dark"] .bg-slate-200 { background: #334155; }
+/* correct-answer reveal wash was glowing white in dark */
+[data-theme="dark"] .bg-emerald-50\/60 { background: rgba(6, 78, 59, 0.45); }
+/* review banner needs a dark skin (was inline style, now themed) */
+.review-banner { background: linear-gradient(90deg, #ede9fe, #f5f1fe); }
+[data-theme="dark"] .review-banner { background: linear-gradient(90deg, #2a1b4d, #1c1440); border-color: rgba(148, 163, 255, 0.2); }
 /* soft edge blend for scroll rows — chapters dissolve into the panel on
    ALL sides (left / right / top / bottom), no hard cuts anywhere.
    Horizontal fades follow scroll position; top/bottom always blend. */

@@ -1,8 +1,8 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useVertex } from "../store.jsx";
-import { Card, Ico, Stat, ScoreLine } from "../components/ui.jsx";
+import { Card, Ico, Modal, Pager, Stat, ScoreLine, usePager } from "../components/ui.jsx";
 import { Sidebar, Topbar, BgBlobs } from "../components/Shell.jsx";
-import { getAttemptStats, listAttempts, toRecord, activityDays, momentumWeek } from "../engine/attempts.js";
+import { getAttemptStats, listAttempts, toRecord, activityDays, momentumWeek, currentStreak, deleteAttempt, getAttempt } from "../engine/attempts.js";
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const LVL = ["", "bg-violet-200", "bg-violet-300", "bg-violet-500", "bg-violet-700"];
@@ -16,15 +16,44 @@ const fmtDate = (ts) => {
 const barsFrom = (vals) => vals.map((v) => 8 + Math.round((Math.max(0, Math.min(100, v)) / 100) * 28));
 
 export default function Overview({ go }) {
-  const { user, showToast } = useVertex();
+  const { user, showToast, library } = useVertex();
+  const [tick, setTick] = useState(0); // refresh after deletes
+  const [allOpen, setAllOpen] = useState(false);
+  const [recentOpen, setRecentOpen] = useState(false);
 
-  const stats = useMemo(() => getAttemptStats(), []);
-  const recents = useMemo(() => listAttempts().slice(0, 4), []);
-  const activity = useMemo(() => activityDays(12), []);
-  const week = useMemo(() => momentumWeek(), []);
-  const lastFive = useMemo(() => listAttempts().slice(0, 5).reverse().map((a) => toRecord(a).percentageNum), []);
+  const stats = useMemo(() => getAttemptStats(), [tick]);
+  const recents = useMemo(() => listAttempts().slice(0, 10), [tick]);
+  const recentShown = recentOpen ? recents : recents.slice(0, 3);
+  const activity = useMemo(() => activityDays(12), [tick]);
+  const week = useMemo(() => momentumWeek(), [tick]);
+  const lastFive = useMemo(() => listAttempts().slice(0, 5).reverse().map((a) => toRecord(a).percentageNum), [tick]);
 
   const completionRate = stats.total ? Math.round((stats.completed / stats.total) * 100) : 0;
+
+  // saved questions (starred in the exam player), newest first
+  const savedAll = useMemo(() => {
+    let raw = [];
+    try { raw = JSON.parse(localStorage.getItem("vertexSavedV1") || "[]"); } catch { raw = []; }
+    return raw.map((s) => {
+      const a = getAttempt(s.attemptId);
+      return {
+        ...s,
+        attempt: a || null,
+        q: a?.questions.find((x) => x.id === s.qid) || null,
+        chapter: (library.subjects || [])
+          .flatMap((x) => x.chapters || []).find((c) => c.id === a?.chapterId)?.title || "",
+      };
+    }).sort((a, b) => (b.savedAt || 0) - (a.savedAt || 0));
+  }, [library, tick]);
+  const savedPager = usePager(savedAll, 10);
+  const unsave = (attemptId, qid) => {
+    try {
+      const all = JSON.parse(localStorage.getItem("vertexSavedV1") || "[]")
+        .filter((s) => !(s.attemptId === attemptId && s.qid === qid));
+      localStorage.setItem("vertexSavedV1", JSON.stringify(all));
+    } catch { /* ignore */ }
+    setTick((t) => t + 1);
+  };
 
   // heatmap grid: 12 week-columns ending this week, Mon..Sun rows
   const monday = useMemo(() => {
@@ -41,19 +70,8 @@ export default function Overview({ go }) {
     return { n, label, level: n === 0 ? 0 : n === 1 ? 1 : n <= 3 ? 2 : n <= 5 ? 3 : 4 };
   };
 
-  // current day-streak from real active days
-  const streak = useMemo(() => {
-    const has = (t) => {
-      const d = new Date(t);
-      return !!activity.counts[`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`];
-    };
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    let s = 0;
-    let t = has(today.getTime()) ? today.getTime() : today.getTime() - 864e5;
-    while (has(t)) { s++; t -= 864e5; }
-    return s;
-  }, [activity]);
+  // current day-streak, same engine code as the topbar flame
+  const streak = useMemo(() => currentStreak(), [tick]);
 
   const maxWeek = Math.max(4, ...week.map((d) => d.count));
   const weekTotal = week.reduce((a, d) => a + d.count, 0);
@@ -162,7 +180,7 @@ export default function Overview({ go }) {
           <div className="flex items-start">
             <div><h3 className="text-[19px] font-extrabold">Recent tests</h3>
               <div className="text-[13px] text-[var(--v-muted)] mt-1">Resume where you stopped, or review a finished attempt</div></div>
-            <button onClick={() => showToast(stats.total ? `Showing all ${stats.total} attempts` : "No attempts yet — visit the Library.")} style={{ "--neon": "#8b5cf6" }}
+            <button onClick={() => (stats.total ? setAllOpen(true) : showToast("No attempts yet — visit the Library."))} style={{ "--neon": "#8b5cf6" }}
               className="neon ml-auto border border-[var(--v-line)] rounded-full px-[18px] py-2.5 text-[13px] font-bold f3d-pill flex items-center gap-2">View all <Ico n="arrowR" s={13} /></button>
           </div>
           {recents.length === 0 && stats.total === 0 && (
@@ -172,7 +190,7 @@ export default function Overview({ go }) {
                 className="f3d-btn f3d-btn-violet mt-3 rounded-full px-5 py-2.5 text-[13px] font-bold flex items-center gap-2">Open Library <Ico n="arrowR" s={13} /></button>
             </div>
           )}
-          {recents.map((a) => {
+          {recentShown.map((a) => {
             const r = toRecord(a);
             const C = 163.3;
             const done = r.status === "completed";
@@ -200,8 +218,105 @@ export default function Overview({ go }) {
               </div>
             );
           })}
+          {recents.length > 3 && (
+            <div className="group/expand mt-1 flex items-center gap-3 px-1">
+              <span className="relative flex-1 h-px bg-[var(--v-line)]">
+                <span className="beam beam-l" aria-hidden />
+              </span>
+              <button onClick={() => setRecentOpen((o) => !o)} style={{ "--neon": "#8b5cf6" }}
+                title={recentOpen ? "Show less" : "Show all ten"}
+                className="neon w-11 h-11 shrink-0 rounded-full f3d-pill flex items-center justify-center text-violet-600">
+                <Ico n={recentOpen ? "chevU" : "chevD"} s={18} />
+              </button>
+              <span className="relative flex-1 h-px bg-[var(--v-line)]">
+                <span className="beam beam-r" aria-hidden />
+              </span>
+            </div>
+          )}
         </Card>
+
+        {/* saved questions — starred in the exam player */}
+        {savedAll.length > 0 && (
+          <Card float className="mt-3.5 p-[22px]">
+            <div className="flex items-start">
+              <div><h3 className="text-[19px] font-extrabold">Saved questions</h3>
+                <div className="text-[13px] text-[var(--v-muted)] mt-1">Starred mid-exam — jump back in or remove them</div></div>
+              <span className="ml-auto text-[11.5px] font-bold text-amber-600 bg-amber-50 border border-amber-200 rounded-full px-3 py-1">
+                {savedAll.length} saved</span>
+            </div>
+            {savedPager.pageItems.map((s) => {
+              const live = !!s.attempt;
+              const done = s.attempt?.status === "completed";
+              return (
+                <div key={`${s.attemptId}-${s.qid}`} className="mt-3 rounded-[18px] border border-[var(--v-line)] bg-[var(--v-bg)] p-4 flex items-center gap-3">
+                  <span className="f3d-orb rounded-xl shrink-0" style={{ width: 40, height: 40, background: "linear-gradient(180deg,#fbbf24,#d97706)", color: "#fff" }}>
+                    <Ico n="star" s={20} />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold line-clamp-2">{s.q?.question || "Question no longer available."}</p>
+                    <div className="text-xs text-[var(--v-muted)] mt-1 truncate">
+                      {[s.attempt?.title, s.chapter].filter(Boolean).join(" · ") || "Test removed"}
+                    </div>
+                  </div>
+                  <div className="ml-auto flex gap-2 shrink-0">
+                    {live && (done
+                      ? <button onClick={() => go("result", { attemptId: s.attemptId })}
+                        className="f3d-btn f3d-btn-violet rounded-full px-4 py-2 text-xs font-bold">Open test</button>
+                      : <button onClick={() => go("player", { attemptId: s.attemptId })}
+                        className="f3d-btn f3d-btn-violet rounded-full px-4 py-2 text-xs font-bold">Practice</button>)}
+                    <button onClick={() => unsave(s.attemptId, s.qid)}
+                      className="rounded-full px-4 py-2 text-xs font-bold text-[var(--v-muted)] border border-[var(--v-line)]">Unsave</button>
+                  </div>
+                </div>
+              );
+            })}
+            <Pager page={savedPager.page} total={savedPager.total} onChange={savedPager.setPage} />
+          </Card>
+        )}
       </main>
+      {allOpen && <AllAttempts close={() => setAllOpen(false)} go={go} refresh={() => setTick((t) => t + 1)} />}
     </div>
+  );
+}
+
+/* Every attempt, newest first — resume / review / delete from the deck. */
+function AllAttempts({ close, go, refresh }) {
+  const { showToast } = useVertex();
+  const [list, setList] = useState(() => listAttempts());
+  const reload = () => { setList(listAttempts()); refresh(); };
+  const pg = usePager(list, 10);
+  return (
+    <Modal title={`All attempts (${list.length})`} okText="Done" onClose={close} onOk={close}>
+      <div className="mt-3 space-y-2.5 max-h-[52vh] overflow-y-auto scroll-slim pr-1">
+        {list.length === 0 && (
+          <p className="text-sm text-[var(--v-muted)] text-center py-6">Nothing here yet — take a test first.</p>
+        )}
+        {pg.pageItems.map((a) => {
+          const r = toRecord(a);
+          const done = r.status === "completed";
+          return (
+            <div key={a.id} className="rounded-2xl border border-[var(--v-line)] bg-[var(--v-bg)] p-3.5">
+              <div className="flex items-center gap-2 text-sm min-w-0">
+                <b className="truncate">{a.title}</b>
+                <b className="ml-auto shrink-0">{r.percentage}</b>
+              </div>
+              <div className="mt-1 text-xs text-[var(--v-muted)]">
+                {r.answeredCount} / {r.totalQuestions} answered · {done ? "Completed" : "In progress"} · {fmtDate(r.updatedAt)}
+              </div>
+              <div className="mt-2.5 flex gap-2">
+                {done
+                  ? <button onClick={() => { close(); go("result", { attemptId: a.id }); }}
+                    className="f3d-btn f3d-btn-violet rounded-lg px-3.5 py-1.5 text-xs font-bold flex items-center gap-1.5">Review <Ico n="arrowR" s={12} /></button>
+                  : <button onClick={() => { close(); go("player", { attemptId: a.id }); }}
+                    className="f3d-btn f3d-btn-violet rounded-lg px-3.5 py-1.5 text-xs font-bold flex items-center gap-1.5">Resume <Ico n="arrowR" s={12} /></button>}
+                <button onClick={() => { deleteAttempt(a.id); reload(); showToast("Attempt deleted."); }}
+                  className="rounded-lg px-3.5 py-1.5 text-xs font-bold text-red-600 border border-red-200">Delete</button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <Pager page={pg.page} total={pg.total} onChange={pg.setPage} />
+    </Modal>
   );
 }

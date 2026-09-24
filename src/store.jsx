@@ -38,9 +38,10 @@ export function VertexProvider({ children }) {
   const toastTimer = useRef(null);
 
   useEffect(() => {
-    document.documentElement.dataset.theme = theme;
+    // login screen is always light; the app theme applies once authed
+    document.documentElement.dataset.theme = authed ? theme : "light";
     set("vertexTheme", theme);
-  }, [theme]);
+  }, [theme, authed]);
 
   useEffect(() => {
     set("vertexLibraryV1", JSON.stringify(library));

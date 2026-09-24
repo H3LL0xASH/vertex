@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { useVertex } from "../store.jsx";
-import { uid } from "../data/seed.js";
+import { detectBackup, normalizeSubjects, examToSubject } from "../engine/backup.js";
+import { mergeAttempts } from "../engine/attempts.js";
 import { Card, Ico } from "../components/ui.jsx";
 import { Sidebar, Topbar, BgBlobs } from "../components/Shell.jsx";
 
@@ -9,27 +10,26 @@ export default function Upload({ go }) {
   const [drag, setDrag] = useState(false);
   const fileRef = useRef(null);
 
+  // same auto-detect as Library import: backup, subject list, or exam dataset
   const ingest = (f) => {
     if (!f) return;
     const r = new FileReader();
     r.onload = () => {
-      try {
-        const d = JSON.parse(r.result);
-        const arr = Array.isArray(d) ? d : d.subjects;
-        if (!Array.isArray(arr)) throw new Error("bad");
-        setLibrary({
-          subjects: arr.map((s) => ({
-            id: s.id || uid("sub"), title: String(s.title || "Untitled"), desc: s.desc || "",
-            icon: s.icon || "book", tint: s.tint || "pink",
-            chapters: (s.chapters ?? []).map((c) => ({
-              id: c.id || uid("ch"), title: String(c.title || "Untitled"),
-              status: c.status === "progress" ? "progress" : "not",
-              pct: c.pct || 0, answered: c.answered || 0, total: c.total || 0, score: c.score || 0, tint: c.tint || "blue",
-            })),
-          })),
-        });
-        showToast(`Dataset loaded — ${arr.length} subject(s). See Library.`);
-      } catch { showToast("Could not read that JSON file"); }
+      const found = detectBackup(r.result);
+      if (found.kind === "invalid") { showToast(found.error); return; }
+      if (found.kind === "exam") {
+        const made = examToSubject(found.data);
+        setLibrary((prev) => ({ subjects: [...prev.subjects, made.subject] }));
+        showToast(`Dataset detected — created “${made.subject.title}” (${made.count} questions). See Library.`);
+        return;
+      }
+      setLibrary({ subjects: normalizeSubjects(found.data.subjects) });
+      let extra = "";
+      if (found.kind === "vertex-backup") {
+        const n = mergeAttempts(found.data.attempts || []);
+        if (n) extra = ` + ${n} attempt${n === 1 ? "" : "s"}`;
+      }
+      showToast(`Loaded ${found.data.subjects.length} subject(s)${extra}. See Library.`);
     };
     r.readAsText(f);
   };

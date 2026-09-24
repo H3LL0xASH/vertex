@@ -4,7 +4,7 @@ import {
   listAttempts, toRecord, getAttemptStats, accuracyBreakdown,
   scoreSeries, topicAccuracy, timeStats,
 } from "../engine/attempts.js";
-import { Card, Ico, Orb, Stat, Donut, ScoreLine, SegTabs } from "../components/ui.jsx";
+import { Card, Ico, Orb, Pager, Stat, Donut, ScoreLine, SegTabs, usePager } from "../components/ui.jsx";
 import { Sidebar, Topbar, BgBlobs } from "../components/Shell.jsx";
 
 const TABS = [
@@ -24,7 +24,6 @@ export default function Analytics({ go }) {
   const { showToast, library, startAttempt: launch } = useVertex();
   const [tab, setTab] = useState("trends");
   const [range, setRange] = useState(RANGES[0]);
-  const [showReco, setShowReco] = useState(false);
   const [rangeOpen, setRangeOpen] = useState(false);
 
   const stats = useMemo(() => getAttemptStats(), []);
@@ -51,8 +50,6 @@ export default function Analytics({ go }) {
     if (!series.length) return -1;
     return series.reduce((bi, p, i) => (p.v > series[bi].v ? i : bi), 0);
   }, [series]);
-
-  const completionRate = stats.total ? Math.round((stats.completed / stats.total) * 100) : 0;
 
   const practiceTopic = (topic) => {
     // find the newest attempt carrying this topic, relaunch its chapter
@@ -191,44 +188,16 @@ export default function Analytics({ go }) {
               </Card>
             </section>
 
-            <Card float delay={1.4} className="mt-3.5 p-5 flex items-center gap-4 flex-wrap">
+            <Card float delay={1.4} className="mt-3.5 p-5 flex items-center gap-4 flex-wrap opacity-80">
               <Orb tint="orange" icon="flask" size={48} radius={14} />
               <div className="min-w-[220px] flex-1">
-                <b className="text-[15px]">Insight</b>
+                <b className="text-[15px]">Insights</b>
                 <p className="text-[13.5px] text-[var(--v-muted)] mt-0.5">
-                  {stats.total === 0
-                    ? "Nothing to analyze yet — link a dataset in the Library and take your first test."
-                    : `You've completed ${completionRate}% of your attempts${topics[0] ? `, and “${topics[0].topic}” is your leakiest topic at ${topics[0].pct}%.` : "."}`}
+                  Smart recommendations are coming soon — trends above already update live.
                 </p>
               </div>
-                <button onClick={() => setShowReco((s) => !s)}
-                className="f3d-btn f3d-btn-violet rounded-xl px-6 py-3.5 text-sm font-bold flex gap-2 items-center">
-                {showReco ? "Hide recommendations" : "View recommendations"} <Ico n="arrowR" s={14} />
-              </button>
-              {showReco && (
-                <div className="basis-full grid md:grid-cols-3 gap-2.5 page-in">
-                  {(stats.total === 0
-                    ? [["Link a dataset", "Library, then any chapter, then Upload JSON or the sample set."],
-                       ["Take the sample test", "12 real Profit & Loss questions, ~10 minutes."],
-                       ["Come back here", "Trends, weak topics and pace fill in automatically."]]
-                    : [
-                        topics[0]
-                          ? [`Drill “${topics[0].topic}”`, `${topics[0].pct}% accuracy across ${topics[0].answered} answered — your biggest leak.`]
-                          : ["Keep answering", "Topic accuracy appears after your first answers."],
-                        (() => {
-                          const ip = listAttempts().find((a) => a.status === "in_progress");
-                          return ip ? [`Resume “${ip.title}”`, `${Object.keys(ip.answers).length}/${ip.questions.length} answered — finish it to unlock trends.`]
-                            : ["Start a new attempt", "Fresh attempts keep your streak alive."];
-                        })(),
-                        [`Protect your streak`, pace ? `Averaging ${pace.avgPerQ} per question across ${pace.tests} test${pace.tests === 1 ? "" : "s"}.` : "Timed practice builds exam-day pace."],
-                      ]
-                  ).map(([t, s]) => (
-                    <div key={t} className="rounded-2xl border border-[var(--v-line)] bg-[var(--v-bg)] p-4 text-sm">
-                      <b>{t}</b><p className="text-[var(--v-muted)] mt-1 text-[13px]">{s}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
+              <span className="text-[11.5px] font-extrabold tracking-[0.14em] text-[var(--v-muted)] border border-[var(--v-line)] rounded-full px-4 py-2">
+                COMING SOON</span>
             </Card>
           </>
         )}
@@ -275,66 +244,12 @@ export default function Analytics({ go }) {
         )}
 
         {tab === "weak" && (
-          <Card float className="mt-3.5 p-[22px] page-in">
-            <h3 className="text-[19px] font-extrabold">Weak topics</h3>
-            <p className="text-[13px] text-[var(--v-muted)] mt-1">Lowest accuracy first — tap Practice to queue a drill.</p>
-            {topics.length === 0 ? (
-              <div className="text-center py-10">
-                <p className="text-sm text-[var(--v-muted)]">Answer questions to reveal your weak topics.</p>
-                <button onClick={() => go("library")}
-                  className="f3d-btn f3d-btn-violet mt-3 rounded-full px-5 py-2.5 text-[13px] font-bold flex items-center gap-2">Practice <Ico n="arrowR" s={13} /></button>
-              </div>
-            ) : (
-              <div className="mt-4 grid gap-2.5 md:grid-cols-2">
-                {topics.slice(0, 6).map((t) => (
-                  <div key={t.topic} className="rounded-2xl border border-[var(--v-line)] bg-[var(--v-bg)] p-4 flex items-center gap-3">
-                    <span className="font-brand font-extrabold text-[22px] w-14 shrink-0"
-                      style={{ color: t.pct < 40 ? "#dc2626" : t.pct < 70 ? "#d97706" : "#059669" }}>{t.pct}%</span>
-                    <div className="min-w-0"><b className="text-sm">{t.topic}</b>
-                      <div className="text-xs text-[var(--v-muted)]">{t.correct}/{t.answered} correct</div></div>
-                    <button onClick={() => practiceTopic(t.topic)}
-                      className="f3d-btn f3d-btn-violet ml-auto rounded-full px-4 py-2 text-xs font-bold">Practice</button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </Card>
+          <WeakTab go={go} topics={topics} practiceTopic={practiceTopic} />
         )}
 
         {tab === "time" && (
           pace ? (
-            <>
-              <div className="mt-3.5 grid md:grid-cols-3 gap-3.5 page-in">
-                {[
-                  ["Avg / question", pace.avgPerQ, `Across ${pace.tests} completed test${pace.tests === 1 ? "" : "s"}`],
-                  ["Longest sitting", pace.longest, "Single-test focus time"],
-                  ["Tests timed", pace.tests, "Completed with the clock running"],
-                ].map(([t, v, s], i) => (
-                  <Card key={t} float delay={i * 0.5} className="p-[22px] text-center">
-                    <div className="text-[11px] tracking-[0.14em] font-bold text-[var(--v-muted)]">{t.toUpperCase()}</div>
-                    <div className="font-brand text-[34px] font-extrabold mt-1">{v}</div>
-                    <div className="text-xs text-[var(--v-muted)] mt-1">{s}</div>
-                  </Card>
-                ))}
-              </div>
-              <Card float className="mt-3.5 p-[22px] page-in">
-                <h3 className="text-[19px] font-extrabold">Pace per test</h3>
-                <p className="text-[13px] text-[var(--v-muted)] mt-1">Time per answered question, newest first.</p>
-                <div className="mt-3 space-y-2">
-                  {listAttempts().filter((a) => a.status === "completed").slice(0, 6).map((a) => {
-                    const n = Object.keys(a.answers || {}).length;
-                    const per = n ? (a.timeSpentSec || 0) / n : 0;
-                    const m = Math.floor(per / 60), s = Math.round(per % 60);
-                    return (
-                      <div key={a.id} className="flex items-center gap-3 text-sm rounded-xl border border-[var(--v-line)] bg-[var(--v-bg)] px-4 py-2.5">
-                        <b className="truncate">{a.title}</b>
-                        <span className="ml-auto text-[var(--v-muted)]">{n} answered · {m > 0 ? `${m}m ` : ""}{s}s / question</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </Card>
-            </>
+            <TimeTab go={go} pace={pace} />
           ) : (
             <Card float className="mt-3.5 p-10 text-center page-in">
               <p className="text-sm text-[var(--v-muted)]">No timed tests yet — finish a test to see your pace.</p>
@@ -345,5 +260,83 @@ export default function Analytics({ go }) {
         )}
       </main>
     </div>
+  );
+}
+
+function WeakTab({ go, topics, practiceTopic }) {
+  const pg = usePager(topics, 10);
+  return (
+    <Card float className="mt-3.5 p-[22px] page-in">
+      <h3 className="text-[19px] font-extrabold">Weak topics</h3>
+      <p className="text-[13px] text-[var(--v-muted)] mt-1">Lowest accuracy first — tap Practice to queue a drill.</p>
+      {topics.length === 0 ? (
+        <div className="text-center py-10">
+          <p className="text-sm text-[var(--v-muted)]">Answer questions to reveal your weak topics.</p>
+          <button onClick={() => go("library")}
+            className="f3d-btn f3d-btn-violet mt-3 rounded-full px-5 py-2.5 text-[13px] font-bold flex items-center gap-2">Practice <Ico n="arrowR" s={13} /></button>
+        </div>
+      ) : (
+        <>
+          <div className="mt-4 grid gap-2.5 md:grid-cols-2">
+            {pg.pageItems.map((t) => (
+              <div key={t.topic} className="rounded-2xl border border-[var(--v-line)] bg-[var(--v-bg)] p-4 flex items-center gap-3">
+                <span className="font-brand font-extrabold text-[22px] w-14 shrink-0"
+                  style={{ color: t.pct < 40 ? "#dc2626" : t.pct < 70 ? "#d97706" : "#059669" }}>{t.pct}%</span>
+                <div className="min-w-0"><b className="text-sm">{t.topic}</b>
+                  <div className="text-xs text-[var(--v-muted)]">{t.correct}/{t.answered} correct</div></div>
+                <button onClick={() => practiceTopic(t.topic)}
+                  className="f3d-btn f3d-btn-violet ml-auto rounded-full px-4 py-2 text-xs font-bold">Practice</button>
+              </div>
+            ))}
+          </div>
+          <Pager page={pg.page} total={pg.total} onChange={pg.setPage} />
+        </>
+      )}
+    </Card>
+  );
+}
+
+function TimeTab({ go, pace }) {
+  const done = useMemo(
+    () => listAttempts().filter((a) => a.status === "completed"),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [pace.tests]
+  );
+  const pg = usePager(done, 10);
+  return (
+    <>
+      <div className="mt-3.5 grid sm:grid-cols-2 lg:grid-cols-4 gap-3.5 page-in">
+        {[
+          ["Total time", pace.totalTime, `Across ${pace.tests} completed test${pace.tests === 1 ? "" : "s"}`],
+          ["Avg / question", pace.avgPerQ, "Per answered question"],
+          ["Avg / test", pace.avgPerTest, "Mean sitting length"],
+          ["Longest sitting", pace.longest, "Single-test focus time"],
+        ].map(([t, v, s], i) => (
+          <Card key={t} float delay={i * 0.4} className="p-[22px] text-center">
+            <div className="text-[11px] tracking-[0.14em] font-bold text-[var(--v-muted)]">{t.toUpperCase()}</div>
+            <div className="font-brand text-[30px] font-extrabold mt-1">{v}</div>
+            <div className="text-xs text-[var(--v-muted)] mt-1">{s}</div>
+          </Card>
+        ))}
+      </div>
+      <Card float className="mt-3.5 p-[22px] page-in">
+        <h3 className="text-[19px] font-extrabold">Pace per test</h3>
+        <p className="text-[13px] text-[var(--v-muted)] mt-1">Time per answered question, newest first.</p>
+        <div className="mt-3 space-y-2">
+          {pg.pageItems.map((a) => {
+            const n = Object.keys(a.answers || {}).length;
+            const per = n ? (a.timeSpentSec || 0) / n : 0;
+            const m = Math.floor(per / 60), s = Math.round(per % 60);
+            return (
+              <div key={a.id} className="flex items-center gap-3 text-sm rounded-xl border border-[var(--v-line)] bg-[var(--v-bg)] px-4 py-2.5">
+                <b className="truncate">{a.title}</b>
+                <span className="ml-auto text-[var(--v-muted)] whitespace-nowrap">{n} answered · {m > 0 ? `${m}m ` : ""}{s}s / q</span>
+              </div>
+            );
+          })}
+        </div>
+        <Pager page={pg.page} total={pg.total} onChange={pg.setPage} />
+      </Card>
+    </>
   );
 }

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useVertex } from "../store.jsx";
+import { currentStreak } from "../engine/attempts.js";
 import { Ico } from "./ui.jsx";
 
 const NAV = [
@@ -78,7 +79,7 @@ export function Sidebar({ tab, go }) {
             <div className="f3d-sphere w-[44px] h-[44px] left-[104px] top-[6px]" />
           </div>
           <div className="f3d f3d-float p-4 flex items-center gap-2.5 text-[15px] leading-snug font-medium pop-in">
-            <span>Practice<br />smarter.<br />Go beyond.</span>
+            <span>GIVE<br />UP!<br />Naah, Never!</span>
             <span className="ml-auto w-9 h-9 rounded-full f3d-pill flex items-center justify-center shrink-0 text-[var(--v-ink)]"><Ico n="arrowR" s={16} /></span>
           </div>
         </>
@@ -94,6 +95,20 @@ export function Sidebar({ tab, go }) {
 
 export function Topbar({ searchPh, search, setSearch, onLibrary, hideSearch }) {
   const { user, theme, toggleTheme, logout, showToast } = useVertex();
+  const streak = currentStreak();
+  const [profOpen, setProfOpen] = useState(false);
+  useEffect(() => {
+    if (!profOpen) return;
+    const close = () => setProfOpen(false);
+    const onKey = (e) => { if (e.key === "Escape") setProfOpen(false); };
+    // listen on capture so the opening click itself never re-closes
+    setTimeout(() => document.addEventListener("click", close), 0);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("click", close);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [profOpen]);
   return (
     <div className="flex items-center gap-3 flex-wrap">
       {!hideSearch && (
@@ -106,8 +121,11 @@ export function Topbar({ searchPh, search, setSearch, onLibrary, hideSearch }) {
         </div>
       )}
       <div className="ml-auto flex items-center gap-2.5">
-        <button onClick={() => showToast("🔥 1-day streak — solve a test today to keep it alive!")} style={{ "--neon": "#f97316" }}
-          className="neon h-[46px] px-[18px] rounded-full bg-[#fff4e8] border border-[#ffd9b8] text-[#c2570b] flex items-center gap-2 text-[13.5px] font-bold shadow-[0_6px_18px_rgba(35,45,80,.1)] hover:-translate-y-[2px] transition-transform">🔥 1 day</button>
+        <button onClick={() => showToast(streak > 0
+          ? `🔥 ${streak}-day streak — solve a test today to keep it alive!`
+          : "No streak yet — answer questions on consecutive days to build one!")} style={{ "--neon": "#f97316" }}
+          className="neon h-[46px] px-[18px] rounded-full bg-[#fff4e8] border border-[#ffd9b8] text-[#c2570b] flex items-center gap-2 text-[13.5px] font-bold shadow-[0_6px_18px_rgba(35,45,80,.1)] hover:-translate-y-[2px] transition-transform">
+          🔥 {streak > 0 ? `${streak} day${streak === 1 ? "" : "s"}` : "Start streak"}</button>
         <button onClick={toggleTheme} style={{ "--neon": "#8b5cf6" }}
           className="neon max-md:hidden h-[46px] px-[18px] rounded-full f3d-pill flex items-center gap-2 text-[13.5px] font-bold hover:-translate-y-[2px] transition-transform">
           {theme === "dark" ? "☀️ Light" : <><Ico n="moon" s={18} /> Dark</>}
@@ -116,19 +134,22 @@ export function Topbar({ searchPh, search, setSearch, onLibrary, hideSearch }) {
           className="neon max-md:hidden h-[46px] px-[18px] rounded-full f3d-pill flex items-center gap-2 text-[13.5px] font-bold hover:-translate-y-[2px] transition-transform">
           <Ico n="book" s={18} /> Library
         </button>
-        <div className="relative group">
-          <div className="h-[52px] pl-[5px] pr-3 rounded-full f3d-pill neon flex items-center gap-2.5 cursor-pointer" style={{ "--neon": "#fb7185" }}>
+        <div className="relative">
+          <div onClick={(e) => { e.stopPropagation(); setProfOpen((o) => !o); }}
+            className="h-[52px] pl-[5px] pr-3 rounded-full f3d-pill neon flex items-center gap-2.5 cursor-pointer" style={{ "--neon": "#fb7185" }}>
             <span className="w-[42px] h-[42px] rounded-full text-white font-extrabold flex items-center justify-center text-lg"
               style={{ background: "linear-gradient(180deg,#ff6b6b,#d81b28)", boxShadow: "inset 2px 3px 5px rgba(255,255,255,.45)" }}>
               {user.charAt(0).toUpperCase()}
             </span>
             <span className="max-[480px]:hidden"><b className="text-sm block leading-tight">{user}</b><small className="text-[10.5px] tracking-wider text-violet-600 font-extrabold">BRONZE</small></span>
-            <span className="max-[480px]:hidden text-[var(--v-muted)] flex"><Ico n="chevD" s={12} /></span>
+            <span className={`max-[480px]:hidden text-[var(--v-muted)] flex transition-transform ${profOpen ? "rotate-180" : ""}`}><Ico n="chevD" s={12} /></span>
           </div>
-          <div className="absolute pos-absolute right-0 top-[60px] f3d pop-in min-w-[170px] overflow-hidden hidden group-hover:block z-50 !rounded-[14px]">
-            <button onClick={logout} className="w-full px-4 py-3 text-left text-[13.5px] font-semibold hover:bg-black/5 flex items-center gap-2">
-              <Ico n="logout" s={16} /> Logout</button>
-          </div>
+          {profOpen && (
+            <div className="absolute pos-absolute right-0 top-[60px] f3d pop-in min-w-[170px] overflow-hidden z-50 !rounded-[14px]" onClick={(e) => e.stopPropagation()}>
+              <button onClick={() => { setProfOpen(false); logout(); }} className="w-full px-4 py-3 text-left text-[13.5px] font-semibold hover:bg-black/5 flex items-center gap-2">
+                <Ico n="logout" s={16} /> Logout</button>
+            </div>
+          )}
         </div>
       </div>
     </div>

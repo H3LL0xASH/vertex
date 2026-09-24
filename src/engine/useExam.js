@@ -84,7 +84,14 @@ export function useExam(attemptId, initialReview = null) {
   const currentQ = attempt ? attempt.questions[attempt.currentIndex] : null;
 
   const gotoIndex = useCallback((i) => {
-    commit((d) => { d.currentIndex = i; });
+    commit((d) => {
+      d.currentIndex = i;
+      const qq = d.questions[i];
+      if (qq) {
+        d.visited = d.visited || {};
+        d.visited[qq.id] = true; // visiting counts, answered or not
+      }
+    });
   }, [commit]);
 
   const step = useCallback((dir) => {
@@ -156,13 +163,26 @@ export function useExam(attemptId, initialReview = null) {
 
   const restart = useCallback(() => {
     commit((d) => {
-      d.answers = {}; d.marked = {}; d.currentIndex = 0; d.score = 0; d.status = "in_progress";
+      d.answers = {}; d.marked = {}; d.visited = {}; d.currentIndex = 0; d.score = 0; d.status = "in_progress";
     });
     setSubmitted(false);
     setReview(null);
     setSection("ALL");
     setTag(null);
   }, [commit]);
+
+  // opening an attempt counts as visiting the landing question
+  useEffect(() => {
+    const a = getAttempt(attemptId);
+    const qq = a?.questions[a.currentIndex];
+    if (qq && !(a.visited || {})[qq.id]) {
+      commit((d) => {
+        d.visited = d.visited || {};
+        d.visited[qq.id] = true;
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [attemptId]);
 
   return {
     attempt, currentQ, indices, sections, tags, topics,

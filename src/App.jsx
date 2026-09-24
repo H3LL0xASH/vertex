@@ -33,22 +33,75 @@ class TabGuard extends Component {
   }
 }
 
+const NAV_TABS = ["overview", "library", "analytics", "upload"];
+
+/* Hash routes — refresh persistence + browser Back/Forward for free:
+   #/overview #/library #/analytics #/upload
+   #/player/<attemptId>?review=WRONG|UNATTEMPTED|MARKED
+   #/result/<attemptId> */
+function routeToHash(tab, payload) {
+  if (tab === "player" && payload?.attemptId) {
+    return `#/player/${payload.attemptId}${payload.review ? `?review=${payload.review}` : ""}`;
+  }
+  if (tab === "result" && payload?.attemptId) return `#/result/${payload.attemptId}`;
+  if (NAV_TABS.includes(tab)) return `#/${tab}`;
+  return "#/overview";
+}
+function parseHash() {
+  const h = (window.location.hash || "").replace(/^#\/?/, "");
+  const qi = h.indexOf("?");
+  const segs = (qi === -1 ? h : h.slice(0, qi)).split("/").filter(Boolean);
+  const params = new URLSearchParams(qi === -1 ? "" : h.slice(qi + 1));
+  if (segs[0] === "player" && segs[1]) {
+    return { tab: "player", payload: { attemptId: segTranslate(segs[1]), review: params.get("review") || null } };
+  }
+  if (segs[0] === "result" && segs[1]) {
+    return { tab: "result", payload: { attemptId: segTranslate(segs[1]) } };
+  }
+  if (NAV_TABS.includes(segs[0])) return { tab: segs[0], payload: {} };
+  return { tab: "overview", payload: {} };
+}
+function segTranslate(s) {
+  try { return decodeURIComponent(s); } catch { return s; }
+}
+
 function Shell() {
   const { authed } = useVertex();
-  const [tab, setTab] = useState("overview");
+  const [tab, setTab] = useState(() => (authed ? parseHash().tab : "overview"));
   // payload for focus tabs: player { attemptId, review? }, result { attemptId }
-  const [payload, setPayload] = useState({});
+  const [payload, setPayload] = useState(() => (authed ? parseHash().payload : {}));
 
-  const go = (t, p) => {
-    const apply = () => {
+  const applyState = (t, p) => {
+    const run = () => {
       setPayload(p || {});
       setTab(t);
       window.scrollTo(0, 0);
     };
     // buttery crossfade between tabs where supported, instant otherwise
-    if (document.startViewTransition) document.startViewTransition(apply);
-    else apply();
+    if (document.startViewTransition) document.startViewTransition(run);
+    else run();
   };
+
+  const go = (t, p) => {
+    const target = routeToHash(t, p);
+    if (window.location.hash === target) {
+      // same URL (re-click, or review mode change): apply directly
+      applyState(t, p);
+      return;
+    }
+    // new URL: let the hashchange listener apply it (Back-button safe)
+    window.location.hash = target;
+  };
+
+  useEffect(() => {
+    const onHash = () => {
+      const { tab: t, payload: p } = parseHash();
+      applyState(t, p);
+    };
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     const onKey = (e) => {
@@ -63,10 +116,10 @@ function Shell() {
 
   if (!authed) return (<><Login /><ToastHost /></>);
 
-  const withNav = ["overview", "library", "analytics", "upload"].includes(tab);
+  const withNav = NAV_TABS.includes(tab);
   return (
     <div className={withNav ? "pb-24 lg:pb-0" : ""}>
-      <TabGuard key={tab}>
+      <TabGuard key={tab + (payload.attemptId || "") + (payload.review || "")}>
         {tab === "overview" && <Overview go={go} />}
         {tab === "library" && <Library go={go} />}
         {tab === "analytics" && <Analytics go={go} />}

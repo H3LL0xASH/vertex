@@ -1,7 +1,6 @@
 // VERTEX seed — the library starts EMPTY. No dummy subjects, attempts or
 // chart points: every number in the UI is derived from real user data
-// (linked datasets + attempts). The bundled sample dataset in
-// data/sampleProfitLoss.js is the only starter content, loaded explicitly.
+// (linked datasets + attempts).
 export const librarySeed = { subjects: [] };
 
 export const TINT_GRAD = {

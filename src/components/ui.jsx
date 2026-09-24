@@ -34,6 +34,8 @@ const P = {
   plus: <path d="M12 5v14M5 12h14" />,
   reset: <><path d="M20 12a8 8 0 1 1-2.34-5.66" /><path d="M20 4v5h-5" /></>,
   logout: <><path d="M14 4h4a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-4" /><path d="M10 8l-4 4 4 4" /><path d="M6 12h10" /></>,
+  pencil: <><path d="M4 20l4-1 11-11a2.1 2.1 0 0 0-3-3L5 16l-1 4Z" /><path d="m13.5 6.5 3 3" /></>,
+  trash: <><path d="M4 7h16" /><path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" /><path d="M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13" /></>,
 };
 export const Ico = ({ n, s = 20, fill = false, className = "" }) => (
   <svg width={s} height={s} viewBox="0 0 24 24" fill={fill ? "currentColor" : "none"}
@@ -207,6 +209,46 @@ export const Field = ({ label, children }) => (
 export const TextInput = (props) => (
   <input {...props} className="w-full border border-[var(--v-line)] rounded-xl px-3.5 py-3 text-sm bg-[var(--v-bg)] text-[var(--v-ink)] outline-none focus:border-violet-500" />
 );
+
+/* ---------- pagination: 10-per-page numbered pager ---------- */
+import { useState as useStatePager } from "react";
+export function usePager(items, perPage = 10) {
+  const [page, setPage] = useStatePager(1);
+  const total = Math.max(1, Math.ceil((items?.length || 0) / perPage));
+  const safe = Math.min(Math.max(page, 1), total);
+  return {
+    pageItems: (items || []).slice((safe - 1) * perPage, safe * perPage),
+    page: safe, setPage, total,
+    reset: () => setPage(1),
+  };
+}
+export function Pager({ page, total, onChange }) {
+  if (total <= 1) return null;
+  const nums = [];
+  for (let i = 1; i <= total; i++) {
+    if (i === 1 || i === total || Math.abs(i - page) <= 1) nums.push(i);
+    else if (nums[nums.length - 1] !== "…") nums.push("…");
+  }
+  return (
+    <div className="mt-3 flex items-center justify-center gap-1.5 flex-wrap">
+      <button disabled={page <= 1} onClick={() => onChange(page - 1)} style={{ "--neon": "#8b5cf6" }}
+        className="neon w-9 h-9 rounded-xl f3d-pill flex items-center justify-center disabled:opacity-40" title="Previous page">
+        <Ico n="chevL" s={15} />
+      </button>
+      {nums.map((n, i) => n === "…"
+        ? <span key={`e${i}`} className="text-[var(--v-muted)] px-1">…</span>
+        : (
+          <button key={n} onClick={() => onChange(n)} style={{ "--neon": "#8b5cf6" }}
+            className={`${n === page ? "f3d-btn f3d-btn-violet" : "neon border border-[var(--v-line)]"} min-w-9 h-9 px-2 rounded-xl text-[13px] font-bold`}>
+            {n}</button>
+        ))}
+      <button disabled={page >= total} onClick={() => onChange(page + 1)} style={{ "--neon": "#8b5cf6" }}
+        className="neon w-9 h-9 rounded-xl f3d-pill flex items-center justify-center disabled:opacity-40" title="Next page">
+        <Ico n="chevR" s={15} />
+      </button>
+    </div>
+  );
+}
 
 /* ---------- toast host ---------- */
 export const ToastHost = () => {

@@ -2,16 +2,16 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useVertex } from "../store.jsx";
 import { uid, TINT_GRAD } from "../data/seed.js";
-import { sampleProfitLoss } from "../data/sampleProfitLoss.js";
 import { normalizeExam } from "../engine/examFormat.js";
-import { chapterRollup, chapterAttempts, deleteAttempt, toRecord } from "../engine/attempts.js";
+import { chapterRollup, chapterAttempts, deleteAttempt, toRecord, listAttempts, mergeAttempts } from "../engine/attempts.js";
+import { detectBackup, normalizeSubjects, buildBackup, downloadJson, examToSubject } from "../engine/backup.js";
 
 const fmtDate = (ts) => {
   try {
     return new Date(ts).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
   } catch { return ""; }
 };
-import { Card, Ico, Orb, Modal, Field, TextInput } from "../components/ui.jsx";
+import { Card, Ico, Orb, Modal, Pager, Field, TextInput, usePager } from "../components/ui.jsx";
 import { Sidebar, Topbar, BgBlobs } from "../components/Shell.jsx";
 
 const TINT_FIX = ["pink", "blue", "green", "orange", "purple", "teal"];
@@ -57,7 +57,7 @@ export default function Library({ go }) {
   const dsFileRef = useRef(null);
 
   /** Chapter → player. Chapters carry their own dataset JSON (D:\WEB format);
-      without one we ask for an upload or the bundled sample set. */
+      without one we ask for an upload. */
   const openChapter = (subjectId, ch) => {
     const r = launchChapter(subjectId, ch.id);
     if (r.attemptId) go("player", { attemptId: r.attemptId });
@@ -129,21 +129,6 @@ export default function Library({ go }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [library, tick]);
 
-  // one-click starter: real sample content, linked and launched
-  const loadSample = () => {
-    const subId = uid("sub"), chId = uid("ch");
-    setLibrary((prev) => ({
-      subjects: [...prev.subjects, {
-        id: subId, title: "Maths", desc: "Numbers, algebra, geometry and more.",
-        icon: "calc", tint: "purple",
-        chapters: [{ id: chId, title: "Profit & Loss", tint: "purple" }],
-      }],
-    }));
-    const r = startAttempt(subId, chId, sampleProfitLoss);
-    if (r.attemptId) go("player", { attemptId: r.attemptId });
-    else showToast("Could not start the sample test.");
-  };
-
   const shown = useMemo(() => {
     const query = q.trim().toLowerCase();
     if (!query) return library.subjects;
@@ -153,41 +138,42 @@ export default function Library({ go }) {
         c.title.toLowerCase().includes(query) || `${s.title} ${s.desc ?? ""}`.toLowerCase().includes(query)),
     })).filter((s) => `${s.title} ${s.desc ?? ""}`.toLowerCase().includes(query) || s.chapters.length);
   }, [library, q]);
+  const subPager = usePager(shown, 10);
+  useEffect(() => { subPager.reset(); }, [q]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
 
   const mutate = (fn) => setLibrary((prev) => {
     const d = structuredClone(prev); fn(d); return d;
   });
 
-  const doExport = () => {
-    const blob = new Blob([JSON.stringify(library, null, 2)], { type: "application/json" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob); a.download = "vertex-library.json";
-    document.body.appendChild(a); a.click();
-    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 300);
-    showToast("Library exported");
+  const [expOpen, setExpOpen] = useState(false);
+
+  const doExportAll = () => {
+    downloadJson(buildBackup(library, listAttempts(), null), "vertex-library.json");
+    showToast("Full library exported.");
   };
   const doImport = (f) => {
     if (!f) return;
     const r = new FileReader();
     r.onload = () => {
-      try {
-        const d = JSON.parse(r.result);
-        const arr = Array.isArray(d) ? d : d.subjects;
-        if (!Array.isArray(arr)) throw new Error("bad");
-        setLibrary({
-          subjects: arr.map((s) => ({
-            id: s.id || uid("sub"), title: String(s.title || "Untitled"), desc: s.desc || "",
-            icon: s.icon || "book", tint: s.tint || "pink",
-            chapters: (s.chapters ?? []).map((c) => ({
-              id: c.id || uid("ch"), title: String(c.title || "Untitled"),
-              tint: c.tint || "blue", total: c.total || 0,
-              ...(c.dataset ? { dataset: c.dataset } : {}),
-            })),
-          })),
-        });
-        setExpanded({});
-        showToast(`Imported ${arr.length} subject(s)`);
-      } catch { showToast("Could not read that JSON file"); }
+      const found = detectBackup(r.result);
+      if (found.kind === "invalid") { showToast(found.error); return; }
+      if (found.kind === "exam") {
+        const made = examToSubject(found.data);
+        setLibrary((prev) => ({ subjects: [...prev.subjects, made.subject] }));
+        showToast(`Dataset detected — created “${made.subject.title}” (${made.count} questions).`);
+        return;
+      }
+      const norm = normalizeSubjects(found.data.subjects);
+      setLibrary({ subjects: norm });
+      setExpanded({});
+      let extra = "";
+      if (found.kind === "vertex-backup") {
+        const n = mergeAttempts(found.data.attempts || []);
+        extra = n ? ` + ${n} attempt${n === 1 ? "" : "s"}` : "";
+        setTick((t) => t + 1);
+      }
+      showToast(`Imported ${norm.length} subject(s)${extra}.`);
     };
     r.readAsText(f);
   };
@@ -208,10 +194,11 @@ export default function Library({ go }) {
       ? "Link a dataset to start testing"
       : roll.attempts === 0
         ? `${nq} questions · no attempts yet`
-        : `${roll.answered} / ${roll.total} answered · ${roll.attempts} attempt${roll.attempts === 1 ? "" : "s"} · ${fmtDate(roll.updatedAt)}`;
+        : `${roll.answered} / ${roll.total} answered · ${roll.attempts} attempt${roll.attempts === 1 ? "" : "s"}`;
+    const locked = menu?.kind === "ch" && menu.chId === c.id;
     return (
       <div key={c.id} onClick={() => openChapter(s.id, c)}
-        className={`neon cht cht-${c.tint || "blue"} rounded-2xl p-4 flex gap-3 items-start shadow-[0_8px_20px_rgba(35,45,80,.07)] hover:-translate-y-[3px] transition-transform cursor-pointer ${rowMode ? "shrink-0 w-[272px] snap-start" : ""}`}
+        className={`neon cht cht-${c.tint || "blue"} rounded-2xl p-4 flex gap-3 items-start shadow-[0_8px_20px_rgba(35,45,80,.07)] hover:-translate-y-[3px] transition-transform cursor-pointer ${rowMode ? "shrink-0 w-[272px] snap-start" : ""} ${locked ? "neon-lock" : ""}`}
         style={{ "--neon": NEON[c.tint] ?? NEON.blue }}>
         <span className="w-[52px] h-[52px] rounded-[14px] shrink-0 flex items-center justify-center shadow-[inset_2px_3px_6px_rgba(255,255,255,.6),0_6px_14px_rgba(0,0,0,.1)]"
           style={{ background: DOC_BG[c.tint] ?? DOC_BG.blue, color: DOC_FG[c.tint] ?? DOC_FG.blue }}>
@@ -291,7 +278,7 @@ export default function Library({ go }) {
             <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Filter subjects / chapters..."
               className="border-0 outline-0 bg-transparent flex-1 text-[13.5px] text-[var(--v-ink)] min-w-0" />
           </div>
-          <button onClick={doExport} style={{ "--neon": "#8b5cf6" }} className="neon rounded-xl px-5 py-[13px] text-[13.5px] font-bold f3d-pill flex gap-2 items-center"><Ico n="down" s={16} /> Export</button>
+          <button onClick={() => setExpOpen(true)} style={{ "--neon": "#8b5cf6" }} className="neon rounded-xl px-5 py-[13px] text-[13.5px] font-bold f3d-pill flex gap-2 items-center"><Ico n="down" s={16} /> Export</button>
           <button onClick={() => fileRef.current?.click()} style={{ "--neon": "#8b5cf6" }} className="neon rounded-xl px-5 py-[13px] text-[13.5px] font-bold f3d-pill flex gap-2 items-center"><Ico n="upload" s={16} /> Import</button>
           <input ref={fileRef} type="file" accept="application/json,.json" hidden onChange={(e) => { doImport(e.target.files[0]); e.target.value = ""; }} />
         </div>
@@ -304,14 +291,13 @@ export default function Library({ go }) {
             </span>
             <h2 className="mt-4 text-xl font-extrabold">Your library is empty</h2>
             <p className="mt-1.5 text-sm text-[var(--v-muted)] max-w-[440px] mx-auto">
-              Add a subject, upload a question dataset in the Vertex JSON format, or jump straight in with the bundled sample test.
+              Add a subject, then upload a question dataset in the Vertex JSON format to start testing.
             </p>
             <div className="mt-5 flex gap-2.5 justify-center flex-wrap">
               <button onClick={() => setModal({ mode: "subject" })}
                 className="f3d-btn f3d-btn-violet rounded-xl px-5 py-3 text-[13.5px] font-bold flex items-center gap-2"><Ico n="plus" s={15} /> Add Subject</button>
               <button onClick={() => fileRef.current?.click()} style={{ "--neon": "#8b5cf6" }}
                 className="neon rounded-xl px-5 py-3 text-[13.5px] font-bold f3d-pill flex items-center gap-2"><Ico n="upload" s={15} /> Upload JSON</button>
-              <button onClick={loadSample} className="f3d-btn f3d-btn-green rounded-xl px-5 py-3 text-[13.5px] font-bold flex items-center gap-2"><Ico n="play" s={13} /> Try sample test</button>
             </div>
           </Card>
         )}
@@ -319,11 +305,13 @@ export default function Library({ go }) {
           <div className="f3d mt-3.5 p-11 text-center text-[var(--v-muted)] text-sm border-dashed">
             No subjects or chapters match “{q}”.
             <br />
-            <button onClick={() => { resetLibrary(); setQ(""); }} className="mt-3.5 rounded-xl px-5 py-[13px] text-[13.5px] font-bold f3d-pill">Reset to sample data</button>
+            <button onClick={() => setQ("")} className="mt-3.5 rounded-xl px-5 py-[13px] text-[13.5px] font-bold f3d-pill">Clear search</button>
           </div>
         )}
-        {shown.map((s, si) => (
-          <Card key={s.id} float delay={si * 0.5} className="mt-3.5 p-5">
+        {subPager.pageItems.map((s, si) => (
+          <Card key={s.id} float delay={si * 0.5}
+            className={`mt-3.5 p-5 ${menu?.kind === "sub" && menu.subId === s.id ? "neon-lock" : ""}`}
+            style={{ "--neon": "#8b5cf6" }}>
             <div className="flex items-start gap-3.5 flex-wrap">
               <Orb tint={s.tint} icon={s.icon} />
               <div className="min-w-0">
@@ -388,6 +376,7 @@ export default function Library({ go }) {
             })()}
           </Card>
         ))}
+        <Pager page={subPager.page} total={subPager.total} onChange={subPager.setPage} />
       </main>
 
       {menu && (
@@ -395,13 +384,13 @@ export default function Library({ go }) {
           {menu.kind === "sub" ? (
             <>
               <button onClick={() => { setModal({ mode: "rename", subId: menu.subId }); setMenu(null); }}
-                className="block w-full text-left px-3 py-2.5 rounded-[9px] text-[13px] font-semibold hover:bg-black/5">✎ Edit subject</button>
+                className="trace-hover block w-full text-left px-3 py-2.5 rounded-[9px] text-[13px] font-semibold flex items-center gap-2.5"><Ico n="pencil" s={15} /> Edit subject</button>
               <button onClick={() => { setModal({ mode: "chapter", subId: menu.subId }); setMenu(null); }}
-                className="block w-full text-left px-3 py-2.5 rounded-[9px] text-[13px] font-semibold hover:bg-black/5 flex items-center gap-2"><Ico n="plus" s={13} /> Add chapter</button>
+                className="trace-hover block w-full text-left px-3 py-2.5 rounded-[9px] text-[13px] font-semibold flex items-center gap-2.5"><Ico n="plus" s={15} /> Add chapter</button>
               <button onClick={() => { exportSubject(menu.subId); setMenu(null); }}
-                className="block w-full text-left px-3 py-2.5 rounded-[9px] text-[13px] font-semibold hover:bg-black/5">⤓ Export subject JSON</button>
+                className="trace-hover block w-full text-left px-3 py-2.5 rounded-[9px] text-[13px] font-semibold flex items-center gap-2.5"><Ico n="down" s={15} /> Export subject JSON</button>
               <button onClick={() => { setModal({ mode: "delete", subId: menu.subId }); setMenu(null); }}
-                className="block w-full text-left px-3 py-2.5 rounded-[9px] text-[13px] font-semibold text-red-600 hover:bg-black/5">Delete subject</button>
+                className="trace-hover block w-full text-left px-3 py-2.5 rounded-[9px] text-[13px] font-semibold text-red-600 flex items-center gap-2.5" style={{ "--neon": "#f43f5e" }}><Ico n="trash" s={15} /> Delete subject</button>
             </>
           ) : (
             <>
@@ -409,23 +398,24 @@ export default function Library({ go }) {
                 const c = library.subjects.find((x) => x.id === menu.subId)?.chapters.find((x) => x.id === menu.chId);
                 setMenu(null);
                 if (c) openChapter(menu.subId, c);
-              }} className="block w-full text-left px-3 py-2.5 rounded-[9px] text-[13px] font-semibold hover:bg-black/5 flex items-center gap-2"><Ico n="play" s={13} /> Start / resume test</button>
+              }} className="trace-hover block w-full text-left px-3 py-2.5 rounded-[9px] text-[13px] font-semibold flex items-center gap-2.5"><Ico n="play" s={14} /> Start / resume test</button>
               <button onClick={() => { setMenu(null); setModal({ mode: "chapter-edit", subId: menu.subId, chId: menu.chId }); }}
-                className="block w-full text-left px-3 py-2.5 rounded-[9px] text-[13px] font-semibold hover:bg-black/5">✎ Edit chapter</button>
+                className="trace-hover block w-full text-left px-3 py-2.5 rounded-[9px] text-[13px] font-semibold flex items-center gap-2.5"><Ico n="pencil" s={14} /> Edit chapter</button>
               <button onClick={() => {
                 const c = library.subjects.find((x) => x.id === menu.subId)?.chapters.find((x) => x.id === menu.chId);
                 setMenu(null);
                 if (c) { setHist({ subjectId: menu.subId, chapterId: menu.chId, title: c.title }); setTick((t) => t + 1); }
-              }} className="block w-full text-left px-3 py-2.5 rounded-[9px] text-[13px] font-semibold hover:bg-black/5 flex items-center gap-2"><Ico n="clock" s={13} /> Attempt history</button>
+              }} className="trace-hover block w-full text-left px-3 py-2.5 rounded-[9px] text-[13px] font-semibold flex items-center gap-2.5"><Ico n="clock" s={14} /> Attempt history</button>
               <button onClick={() => {
                 const c = library.subjects.find((x) => x.id === menu.subId)?.chapters.find((x) => x.id === menu.chId);
                 setMenu(null);
                 if (c) deleteChapterEverywhere(menu.subId, menu.chId, c.title);
-              }} className="block w-full text-left px-3 py-2.5 rounded-[9px] text-[13px] font-semibold text-red-600 hover:bg-black/5">Delete chapter</button>
+              }} className="trace-hover block w-full text-left px-3 py-2.5 rounded-[9px] text-[13px] font-semibold text-red-600 flex items-center gap-2.5" style={{ "--neon": "#f43f5e" }}><Ico n="trash" s={14} /> Delete chapter</button>
             </>
           )}
         </Popup>
       )}
+      {expOpen && <ExportModal close={() => setExpOpen(false)} />}
       {modal && <LibraryModal modal={modal} close={() => setModal(null)} mutate={mutate} library={library} />}
       {hist && <HistoryModal hist={hist} go={go}
         close={() => setHist(null)} refresh={() => setTick((t) => t + 1)} />}
@@ -433,7 +423,7 @@ export default function Library({ go }) {
         <Modal title={`“${dsModal.title}” needs questions`} okText="Cancel" onClose={() => setDsModal(null)}
           onOk={() => setDsModal(null)}>
           <p className="mt-3 text-sm text-[var(--v-muted)]">
-            Link a dataset in the Vertex exam JSON format — upload your own file or try the bundled sample set.
+            Link a dataset in the Vertex exam JSON format — upload your own file, or drop one on the Upload page.
           </p>
           <div className="mt-4 grid gap-2.5">
             <button onClick={() => dsFileRef.current?.click()} style={{ "--neon": "#8b5cf6" }}
@@ -443,14 +433,6 @@ export default function Library({ go }) {
               </span>
               <span><b className="text-sm block">Upload JSON file</b>
                 <span className="text-xs text-[var(--v-muted)]">Same format as the Upload page</span></span>
-            </button>
-            <button onClick={() => linkAndLaunch(dsModal.subjectId, dsModal.chapterId, sampleProfitLoss, "Profit & Loss sample")} style={{ "--neon": "#22c55e" }}
-              className="neon f3d rounded-2xl p-4 flex items-center gap-3 text-left">
-              <span className="f3d-orb rounded-xl" style={{ width: 42, height: 42, background: "linear-gradient(180deg,#8fe3b6,#34b87a)", color: "#fff" }}>
-                <Ico n="doc" s={22} />
-              </span>
-              <span><b className="text-sm block">Load sample: Profit &amp; Loss</b>
-                <span className="text-xs text-[var(--v-muted)]">12 questions · Quick Revision / Set 1 / Set 2</span></span>
             </button>
           </div>
           <input ref={dsFileRef} type="file" accept="application/json,.json" hidden onChange={(e) => {
@@ -500,6 +482,87 @@ function Popup({ rect, onClose, children }) {
       {children}
     </div>,
     document.body
+  );
+}
+
+/* Export picker — checkboxes per subject + chapter. Exports a Vertex
+   backup the Import button auto-detects (subjects, datasets, attempts). */
+function ExportModal({ close }) {
+  const { library, showToast } = useVertex();
+  const [sel, setSel] = useState(() => new Map(
+    library.subjects.map((s) => [s.id, "all"])));
+  const toggleSub = (s) => {
+    setSel((prev) => {
+      const next = new Map(prev);
+      const cur = next.get(s.id);
+      if (cur === undefined || (cur instanceof Set && cur.size < s.chapters.length)) {
+        next.set(s.id, "all");
+      } else next.delete(s.id);
+      return next;
+    });
+  };
+  const toggleCh = (s, chId) => {
+    setSel((prev) => {
+      const next = new Map(prev);
+      let cur = next.get(s.id);
+      const set = cur === "all"
+        ? new Set(s.chapters.map((c) => c.id))
+        : new Set(cur || []);
+      if (set.has(chId)) set.delete(chId);
+      else set.add(chId);
+      if (set.size === 0) next.delete(s.id);
+      else next.set(s.id, set.size === s.chapters.length ? "all" : set);
+      return next;
+    });
+  };
+  const chosenSubs = [...sel.keys()].length;
+  const doGo = () => {
+    if (!chosenSubs) { showToast("Tick at least one subject or chapter."); return; }
+    const pack = buildBackup(library, listAttempts(), sel);
+    const nCh = pack.subjects.reduce((a, s) => a + s.chapters.length, 0);
+    downloadJson(pack, "vertex-backup.json");
+    showToast(`Exported ${pack.subjects.length} subject(s), ${nCh} chapter(s), ${pack.attempts.length} attempt(s).`);
+    close();
+  };
+  return (
+    <Modal title="Export — pick what to pack" okText="Download" onClose={close} onOk={doGo}>
+      <div className="mt-3 space-y-2.5 max-h-[46vh] overflow-y-auto scroll-slim pr-1">
+        {library.subjects.length === 0 && (
+          <p className="text-sm text-[var(--v-muted)] text-center py-4">Library is empty — nothing to export yet.</p>
+        )}
+        {library.subjects.map((s) => {
+          const cur = sel.get(s.id);
+          const all = cur === "all";
+          const some = cur instanceof Set && cur.size > 0;
+          return (
+            <div key={s.id} className="rounded-2xl border border-[var(--v-line)] bg-[var(--v-bg)] p-3">
+              <label className="flex items-center gap-2.5 text-sm font-bold cursor-pointer">
+                <input type="checkbox" checked={all || some} ref={(el) => { if (el) el.indeterminate = some && !all; }}
+                  onChange={() => toggleSub(s)} className="w-5 h-5 accent-violet-600 shrink-0" />
+                <span className="truncate">{s.title}</span>
+                <span className="ml-auto text-xs font-semibold text-[var(--v-muted)] whitespace-nowrap">
+                  {all ? "all" : some ? `${cur.size}/${s.chapters.length}` : "none"}</span>
+              </label>
+              <div className="mt-2 ml-7 space-y-1.5">
+                {s.chapters.map((c) => {
+                  const on = all || (cur instanceof Set && cur.has(c.id));
+                  return (
+                    <label key={c.id} className="flex items-center gap-2.5 text-[13px] cursor-pointer">
+                      <input type="checkbox" checked={on} onChange={() => toggleCh(s, c.id)}
+                        className="w-4 h-4 accent-violet-600 shrink-0" />
+                      <span className="truncate">{c.title}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <p className="mt-3 text-xs text-[var(--v-muted)]">
+        {chosenSubs === 0 ? "Nothing selected." : `${chosenSubs} subject(s) selected.`} The file re-imports anywhere with full datasets included.
+      </p>
+    </Modal>
   );
 }
 
@@ -617,21 +680,10 @@ function LibraryModal({ modal, close, mutate, library }) {
         }
         close();
       }}>
-        {!isEdit && (
-          <Field label="Subject">
-            <select value={subId} onChange={(e) => setSubId(e.target.value)}
-              className="w-full border border-[var(--v-line)] rounded-xl px-3.5 py-3 text-sm bg-[var(--v-bg)]">{
-                library.subjects.map((s) => <option key={s.id} value={s.id}>{s.title}</option>)
-              }</select>
-          </Field>
-        )}
-        <Field label="Chapter name"><TextInput value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Tenses" maxLength={60} /></Field>
-        <Field label="Description (optional)"><TextInput value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="What does it cover?" maxLength={120} /></Field>
-        <TintRow tint={tint} setTint={setTint} />
-        <div className="mt-3.5">
-          <span className="block text-xs font-bold text-[var(--v-muted)] mb-1.5 tracking-wide">QUESTION DATASET (JSON){isEdit ? "" : " — OPTIONAL"}</span>
+        <div className="mt-1 rounded-2xl border border-dashed border-[#c9d2e4] p-3.5 bg-[var(--v-bg)]">
+          <span className="block text-xs font-bold text-[var(--v-muted)] mb-1.5 tracking-wide">1 · QUESTION DATASET (JSON){isEdit ? "" : " — OPTIONAL"}</span>
           {(pendingJson || linkedInfo) && (
-            <div className="flex items-center gap-2 rounded-xl border border-[var(--v-line)] bg-[var(--v-bg)] px-3.5 py-2.5 text-[13px] mb-2">
+            <div className="flex items-center gap-2 rounded-xl border border-[var(--v-line)] bg-[var(--v-card-hi)] px-3.5 py-2.5 text-[13px] mb-2">
               <b className="truncate">{pendingJson ? `${pendingLabel} (new)` : linkedInfo}</b>
               <button onClick={() => {
                 if (pendingJson) { setPendingJson(null); setPendingLabel(""); }
@@ -645,15 +697,32 @@ function LibraryModal({ modal, close, mutate, library }) {
           <div className="flex gap-2">
             <button onClick={() => chFileRef.current?.click()} style={{ "--neon": "#8b5cf6" }}
               className="neon flex-1 rounded-xl border border-[var(--v-line)] px-3 py-2.5 text-[13px] font-bold flex items-center justify-center gap-2"><Ico n="upload" s={14} /> Upload file</button>
-            <button onClick={() => { setPendingJson({ raw: sampleProfitLoss }); setPendingLabel("Profit & Loss sample"); }} style={{ "--neon": "#22c55e" }}
-              className="neon flex-1 rounded-xl border border-[var(--v-line)] px-3 py-2.5 text-[13px] font-bold flex items-center justify-center gap-2"><Ico n="star" s={14} /> Use sample</button>
           </div>
           <input ref={chFileRef} type="file" accept="application/json,.json" hidden onChange={(e) => {
             const f = e.target.files[0];
             e.target.value = "";
-            pickJsonFile(f, ({ raw, label }) => { setPendingJson({ raw }); setPendingLabel(label); });
+            pickJsonFile(f, ({ raw, label }) => {
+              setPendingJson({ raw });
+              setPendingLabel(label);
+              const guess = String(raw.title || "").trim().slice(0, 60);
+              if (guess) setTitle((t) => t.trim() ? t : guess);
+            });
           }} />
-          <p className="mt-2 text-xs text-[var(--v-muted)]">Question count comes straight from the file — asked here, no second popup.</p>
+          <p className="mt-2 text-xs text-[var(--v-muted)]">Upload first — the chapter name fills in from the file, and the count comes with it.</p>
+        </div>
+        {!isEdit && (
+          <Field label="2 · Subject">
+            <select value={subId} onChange={(e) => setSubId(e.target.value)}
+              className="w-full border border-[var(--v-line)] rounded-xl px-3.5 py-3 text-sm bg-[var(--v-bg)]">{
+                library.subjects.map((s) => <option key={s.id} value={s.id}>{s.title}</option>)
+              }</select>
+          </Field>
+        )}
+        <Field label="3 · Chapter name"><TextInput value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Tenses — auto-fills from the dataset above" maxLength={60} /></Field>
+        <Field label="4 · Description (optional)"><TextInput value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="What does it cover?" maxLength={120} /></Field>
+        <div className="mt-3.5">
+          <span className="block text-xs font-bold text-[var(--v-muted)] mb-1.5 tracking-wide">5 · CARD COLOUR</span>
+          <TintRow tint={tint} setTint={setTint} bare />
         </div>
       </Modal>
     );
@@ -681,8 +750,10 @@ function LibraryModal({ modal, close, mutate, library }) {
         <div className="flex gap-2 flex-wrap">
           {ICON_CHOICES.map((c) => (
             <button key={c.k} title={c.label} onClick={() => setIcon(c.k)}
-              className={`w-[46px] h-[46px] rounded-[13px] flex items-center justify-center transition-all ${c.k === icon ? "ring-2 ring-offset-2 ring-violet-600 scale-105" : "opacity-70 hover:opacity-100"}`}
-              style={{ background: TINT_GRAD[tint], color: "#fff", boxShadow: "inset 2px 2px 4px rgba(255,255,255,.5), 0 4px 10px rgba(0,0,0,.12)" }}>
+              className={`w-[46px] h-[46px] rounded-[13px] flex items-center justify-center transition-all duration-150 hover:scale-110 hover:-translate-y-0.5 ${c.k === icon ? "ring-2 ring-offset-2 ring-violet-600 scale-105" : "opacity-70 hover:opacity-100 hover:ring-2 hover:ring-violet-400 hover:ring-offset-1"}`}
+              style={{ background: TINT_GRAD[tint], color: "#fff", boxShadow: c.k === icon
+                ? "inset 2px 2px 4px rgba(255,255,255,.5), 0 6px 16px rgba(124,58,237,.45)"
+                : "inset 2px 2px 4px rgba(255,255,255,.5), 0 4px 10px rgba(0,0,0,.12)" }}>
               <Ico n={c.k} s={22} />
             </button>
           ))}
@@ -693,17 +764,23 @@ function LibraryModal({ modal, close, mutate, library }) {
   );
 }
 
-function TintRow({ tint, setTint }) {
+function TintRow({ tint, setTint, bare }) {
+  const swatches = (
+    <div className="flex gap-2 flex-wrap">
+      {TINT_FIX.map((t) => (
+        <span key={t} title={t} onClick={() => setTint(t)}
+          className={`w-[34px] h-[34px] rounded-[11px] cursor-pointer transition-all duration-150 hover:scale-110 hover:-translate-y-0.5 ${t === tint ? "ring-2 ring-offset-2 ring-violet-600 scale-105" : "hover:ring-2 hover:ring-violet-400 hover:ring-offset-1"}`}
+          style={{ background: TINT_GRAD[t], boxShadow: t === tint
+            ? "inset 2px 2px 4px rgba(255,255,255,.5), 0 6px 16px rgba(124,58,237,.45)"
+            : "inset 2px 2px 4px rgba(255,255,255,.5), 0 4px 10px rgba(0,0,0,.12)" }} />
+      ))}
+    </div>
+  );
+  if (bare) return swatches;
   return (
     <div className="mt-3.5">
       <span className="block text-xs font-bold text-[var(--v-muted)] mb-1.5 tracking-wide">Colour</span>
-      <div className="flex gap-2">
-        {TINT_FIX.map((t) => (
-          <span key={t} title={t} onClick={() => setTint(t)}
-            className={`w-[34px] h-[34px] rounded-[11px] cursor-pointer ${t === tint ? "ring-2 ring-offset-2 ring-slate-800" : ""}`}
-            style={{ background: TINT_GRAD[t], boxShadow: "inset 2px 2px 4px rgba(255,255,255,.5), 0 4px 10px rgba(0,0,0,.12)" }} />
-        ))}
-      </div>
+      {swatches}
     </div>
   );
 }

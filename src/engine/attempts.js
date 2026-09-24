@@ -33,7 +33,7 @@ export function createAttempt(exam, { chapterId = null, subjectId = null } = {})
     markPerCorrect: exam.markPerCorrect, negativeMarking: exam.negativeMarking,
     questions: exam.questions,
     sections: exam.sections.map((s) => s.title),
-    answers: {}, marked: {}, currentIndex: 0,
+    answers: {}, marked: {}, visited: {}, currentIndex: 0,
     score: 0, timeSpentSec: 0,
     status: "in_progress", // 'in_progress' | 'completed'
     createdAt: now, updatedAt: now,
@@ -213,6 +213,7 @@ export function timeStats() {
     return n ? [(a.timeSpentSec || 0) / n] : [];
   });
   const avg = perQ.length ? perQ.reduce((s, x) => s + x, 0) / perQ.length : 0;
+  const totalSec = done.reduce((s, a) => s + (a.timeSpentSec || 0), 0);
   const longest = done.reduce((m, a) => Math.max(m, a.timeSpentSec || 0), 0);
   const fmt = (s) => {
     s = Math.round(s);
@@ -220,7 +221,55 @@ export function timeStats() {
     const m = Math.floor(s / 60);
     return `${m}m ${String(s % 60).padStart(2, "0")}s`;
   };
-  return { avgPerQ: fmt(avg), longest: fmt(longest), tests: done.length };
+  const fmtLong = (s) => {
+    s = Math.round(s);
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    if (h > 0) return `${h}h ${m}m`;
+    if (m > 0) return `${m}m ${String(s % 60).padStart(2, "0")}s`;
+    return `${s}s`;
+  };
+  return {
+    avgPerQ: fmt(avg), longest: fmt(longest),
+    totalTime: fmtLong(totalSec), totalSec,
+    avgPerTest: fmtLong(totalSec / done.length), tests: done.length,
+  };
+}
+
+/** Merge imported attempts by id (backup restore keeps existing ones). */
+export function mergeAttempts(list) {
+  if (!Array.isArray(list) || !list.length) return 0;
+  const map = readAll();
+  let n = 0;
+  list.forEach((a) => {
+    if (!a || typeof a.id !== "string" || !Array.isArray(a.questions)) return;
+    map[a.id] = a;
+    n++;
+  });
+  writeAll(map);
+  return n;
+}
+
+/** Consecutive active days ending today (or yesterday if today is idle). */
+export function currentStreak() {
+  const days = new Set();
+  Object.values(readAll()).forEach((a) => {
+    [a.createdAt, a.updatedAt].forEach((ts) => {
+      if (!ts) return;
+      const d = new Date(ts);
+      days.add(`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`);
+    });
+  });
+  const key = (t) => {
+    const d = new Date(t);
+    return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+  };
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  let t = days.has(key(today.getTime())) ? today.getTime() : today.getTime() - 864e5;
+  let s = 0;
+  while (days.has(key(t))) { s++; t -= 864e5; }
+  return s;
 }
 
 /** Chapter rollup: latest attempt + best score + totals. */

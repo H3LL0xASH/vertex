@@ -47,7 +47,7 @@ export default function Result({ attemptId, go }) {
   };
 
   const restart = () => {
-    saveAttempt({ ...getAttempt(attemptId), answers: {}, marked: {}, currentIndex: 0, score: 0, status: "in_progress" });
+    saveAttempt({ ...getAttempt(attemptId), answers: {}, marked: {}, visited: {}, currentIndex: 0, score: 0, status: "in_progress" });
     go("player", { attemptId });
     showToast("Test restarted — fresh attempt.");
   };
