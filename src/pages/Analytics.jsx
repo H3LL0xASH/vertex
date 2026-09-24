@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { useVertex } from "../store.jsx";
 import {
   listAttempts, toRecord, getAttemptStats, accuracyBreakdown,
@@ -25,6 +26,25 @@ export default function Analytics({ go }) {
   const [tab, setTab] = useState("trends");
   const [range, setRange] = useState(RANGES[0]);
   const [rangeOpen, setRangeOpen] = useState(false);
+  const [rangeRect, setRangeRect] = useState(null);
+  useEffect(() => {
+    if (!rangeOpen) return;
+    const close = () => setRangeOpen(false);
+    const onKey = (e) => { if (e.key === "Escape") setRangeOpen(false); };
+    setTimeout(() => document.addEventListener("click", close), 0);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("click", close);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [rangeOpen]);
+  const openRange = (e) => {
+    e.stopPropagation();
+    if (rangeOpen) { setRangeOpen(false); return; }
+    const r = e.currentTarget.getBoundingClientRect();
+    setRangeRect({ top: r.bottom, right: r.right });
+    setRangeOpen(true);
+  };
 
   const stats = useMemo(() => getAttemptStats(), []);
   const acc = useMemo(() => accuracyBreakdown(), []);
@@ -107,21 +127,11 @@ export default function Analytics({ go }) {
             <p className="mt-2 text-[15px] text-[var(--v-muted)] relative z-[2]">Where your marks come from, and where they leak.</p>
             <div className="mt-5 flex items-center gap-2.5 flex-wrap relative z-[2]">
               <SegTabs tabs={TABS} active={tab} onChange={setTab} />
-              <div className="ml-auto relative">
-                <button onClick={() => setRangeOpen((o) => !o)} style={{ "--neon": "#8b5cf6" }}
+              <div className="ml-auto">
+                <button onClick={openRange} style={{ "--neon": "#8b5cf6" }}
                   className="neon rounded-full px-5 py-3 text-[13.5px] font-bold f3d-pill flex gap-2 items-center">
-                  <Ico n="cal" s={16} /> {range.label} <Ico n="chevD" s={13} />
+                  <Ico n="cal" s={16} /> {range.label} <Ico n="chevD" s={13} className={rangeOpen ? "rotate-180 transition-transform" : "transition-transform"} />
                 </button>
-                {rangeOpen && (
-                  <div className="f3d pos-absolute absolute right-0 top-[54px] z-30 min-w-[170px] p-1.5 !rounded-[14px]">
-                    {RANGES.map((r) => (
-                      <button key={r.label} onClick={() => { setRange(r); setRangeOpen(false); }}
-                        className={`block w-full text-left px-3 py-2.5 rounded-[9px] text-[13px] font-semibold hover:bg-black/5 ${r.label === range.label ? "text-violet-600" : ""}`}>
-                        {r.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
               </div>
             </div>
           </Card>
@@ -259,6 +269,22 @@ export default function Analytics({ go }) {
           )
         )}
       </main>
+      {rangeOpen && rangeRect && createPortal(
+        <div className="fixed pos-fixed z-[80] f3d pop-in min-w-[180px] p-1.5 !rounded-[14px]"
+          style={{
+            top: Math.min(rangeRect.top + 8, window.innerHeight - 190),
+            left: Math.max(8, rangeRect.right - 190),
+          }}
+          onClick={(e) => e.stopPropagation()}>
+          {RANGES.map((r) => (
+            <button key={r.label} onClick={() => { setRange(r); setRangeOpen(false); }}
+              className={`block w-full text-left px-3 py-2.5 rounded-[9px] text-[13px] font-semibold hover:bg-black/5 ${r.label === range.label ? "text-violet-600" : ""}`}>
+              {r.label}
+            </button>
+          ))}
+        </div>,
+        document.body
+      )}
     </div>
   );
 }

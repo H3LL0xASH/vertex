@@ -1,6 +1,6 @@
 import { useEffect, useState, Component } from "react";
 import { VertexProvider } from "./store.jsx";
-import { ToastHost } from "./components/ui.jsx";
+import { ToastHost, BusyOverlay } from "./components/ui.jsx";
 import { MobileNav } from "./components/Shell.jsx";
 import Login from "./pages/Login.jsx";
 import Overview from "./pages/Overview.jsx";
@@ -131,6 +131,7 @@ function Shell() {
       </TabGuard>
       {withNav && <MobileNav tab={tab} go={go} />}
       <ToastHost />
+      <BusyOverlay />
     </div>
   );
 }

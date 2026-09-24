@@ -11,7 +11,8 @@ import { BgBlobs } from "../components/Shell.jsx";
 
 export default function Result({ attemptId, go }) {
   const { showToast } = useVertex();
-  const attempt = getAttempt(attemptId);
+  const raw = getAttempt(attemptId);
+  const attempt = raw && Array.isArray(raw.questions) ? raw : null;
 
   // opening the summary finalizes the attempt (D:\WEB syncs 'completed')
   useEffect(() => {

@@ -302,7 +302,7 @@ export default function Player({ attemptId, initialReview, go }) {
           </div>
 
           <div className="min-h-0 flex flex-col">
-            <Card float delay={0.3} data-qcard className={`p-5 sm:p-6 lg:flex-1 lg:min-h-0 lg:overflow-y-auto ${qOver ? "scroll-slim" : "no-scrollbar"}`}>
+            <Card float delay={0.3} data-qcard className={`no-gloss p-5 sm:p-6 lg:flex-1 lg:min-h-0 lg:overflow-y-auto ${qOver ? "scroll-slim" : "no-scrollbar"}`}>
               {q ? (
                 <>
                   <div className="flex items-center gap-2 flex-wrap">

@@ -24,20 +24,23 @@ function validLibSubject(s) {
     Array.isArray(s.chapters) && s.chapters.every((c) => validChapter(c));
 }
 
-/** Strip legacy dummy stat fields; keep everything else (incl. dataset). */
+/** Strip legacy dummy stat fields; stamp creation times; keep datasets. */
 export function normalizeSubjects(list) {
-  return (list || []).map((s) => ({
+  const now = Date.now();
+  return (list || []).map((s, si) => ({
     id: String(s.id || uid("sub")),
     title: String(s.title ?? s.name ?? "Untitled"),
     desc: s.desc || "",
     icon: s.icon || "book",
     tint: s.tint || "pink",
-    chapters: (s.chapters || []).map((c) => {
+    createdAt: typeof s.createdAt === "number" ? s.createdAt : now - (list.length - si) * 1000,
+    chapters: (s.chapters || []).map((c, ci) => {
       const out = {
         id: String(c.id || uid("ch")),
         title: String(c.title ?? c.name ?? "Untitled"),
         desc: c.desc || "",
         tint: c.tint || "blue",
+        createdAt: typeof c.createdAt === "number" ? c.createdAt : now - (list.length - si) * 1000 - ci,
       };
       if (c.dataset) out.dataset = c.dataset;
       if (typeof c.total === "number") out.total = c.total;
@@ -107,11 +110,11 @@ export function examToSubject(raw) {
   return {
     subject: {
       id: sid, title, desc: "Imported question dataset.",
-      icon: "doc", tint: "blue",
+      icon: "doc", tint: "blue", createdAt: Date.now(),
       chapters: [{
         id: cid, title: "Full set",
         desc: `${(raw.questions || []).length} questions`,
-        tint: "blue", dataset: raw,
+        tint: "blue", createdAt: Date.now(), dataset: raw,
       }],
     },
     count: (raw.questions || []).length,

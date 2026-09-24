@@ -34,7 +34,9 @@ export function normalizeExam(raw) {
   const markPerCorrect = Number(raw.mark_per_correct) > 0 ? Number(raw.mark_per_correct) : 1;
   const negativeMarking = Number(raw.negative_marking) > 0 ? Number(raw.negative_marking) : 0;
 
-  const questions = (raw.questions || []).map((q, idx) => ({
+  const questions = (raw.questions || [])
+    .filter((q) => q && typeof q === "object")
+    .map((q, idx) => ({
     id: `q_${++qSeq}_${idx}`,
     index: idx,
     global_no: q.global_no !== undefined ? Number(q.global_no) : idx + 1,

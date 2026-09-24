@@ -88,8 +88,7 @@ export const Stat = ({ icon, tint, grad, label, value, sub, bars, barColor, spar
       )}
     </div>
     {delta && (
-      <span className="absolute top-3 right-3 text-[11px] font-bold px-2 py-1 rounded-full"
-        style={{ background: delta.na ? "#eef1f7" : "#dcfce7", color: delta.na ? "#64748b" : "#15803d" }}>
+      <span className={`absolute top-3 right-3 text-[11px] font-bold px-2 py-1 rounded-full ${delta.na ? "delta-na" : "delta-ok"}`}>
         {delta.t}
       </span>
     )}
@@ -100,11 +99,10 @@ export const Stat = ({ icon, tint, grad, label, value, sub, bars, barColor, spar
 export const Donut = ({ pct }) => {
   const R = 54, C = 2 * Math.PI * R;
   return (
-    <div className="relative w-[168px] h-[168px] mx-auto">
-      <div className="absolute inset-0 rounded-full"
-        style={{ background: "linear-gradient(180deg,#fff,#eef1f7)", boxShadow: "12px 16px 30px rgba(45,55,90,.18), -8px -10px 22px #fff, inset 3px 4px 10px rgba(170,182,210,.4)" }} />
+    <div className="donut relative w-[168px] h-[168px] mx-auto">
+      <div className="donut-rim absolute inset-0 rounded-full" />
       <svg viewBox="0 0 140 140" className="absolute inset-0">
-        <circle cx="70" cy="70" r={R} fill="none" stroke="#e2e8f0" strokeWidth="16" />
+        <circle className="donut-track" cx="70" cy="70" r={R} fill="none" strokeWidth="16" />
         <circle cx="70" cy="70" r={R} fill="none" stroke="url(#dg)" strokeWidth="16" strokeLinecap="round"
           strokeDasharray={C} strokeDashoffset={C * (1 - pct / 100)} transform="rotate(-90 70 70)" />
         <defs>
@@ -114,8 +112,7 @@ export const Donut = ({ pct }) => {
         </defs>
         <circle cx="70" cy={70 - R} r="8" fill="#f43f5e" stroke="#fff" strokeWidth="3" />
       </svg>
-      <div className="absolute inset-[26px] rounded-full flex items-center justify-center text-[30px] font-extrabold"
-        style={{ background: "linear-gradient(180deg,#fff,#f1f4fa)", boxShadow: "inset 3px 4px 10px rgba(170,182,210,.4)" }}>
+      <div className="donut-core absolute inset-[26px] rounded-full flex items-center justify-center text-[30px] font-extrabold">
         {pct}%
       </div>
     </div>
@@ -249,6 +246,21 @@ export function Pager({ page, total, onChange }) {
     </div>
   );
 }
+
+/* ---------- fullscreen loading overlay for heavy file work ---------- */
+export const BusyOverlay = () => {
+  const { busy } = useVertex();
+  if (!busy) return null;
+  return (
+    <div className="fixed inset-0 z-[90] flex items-center justify-center page-in"
+      style={{ background: "rgba(15,20,40,.45)", backdropFilter: "blur(3px)" }}>
+      <div className="f3d pop-in px-8 py-6 flex items-center gap-4 max-w-[min(420px,90vw)]">
+        <span className="spin-ring" aria-hidden />
+        <b className="text-sm">{busy}</b>
+      </div>
+    </div>
+  );
+};
 
 /* ---------- toast host ---------- */
 export const ToastHost = () => {

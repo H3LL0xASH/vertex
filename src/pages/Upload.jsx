@@ -6,7 +6,7 @@ import { Card, Ico } from "../components/ui.jsx";
 import { Sidebar, Topbar, BgBlobs } from "../components/Shell.jsx";
 
 export default function Upload({ go }) {
-  const { setLibrary, showToast } = useVertex();
+  const { setLibrary, showToast, withBusy } = useVertex();
   const [drag, setDrag] = useState(false);
   const fileRef = useRef(null);
 
@@ -14,22 +14,24 @@ export default function Upload({ go }) {
   const ingest = (f) => {
     if (!f) return;
     const r = new FileReader();
-    r.onload = () => {
-      const found = detectBackup(r.result);
-      if (found.kind === "invalid") { showToast(found.error); return; }
-      if (found.kind === "exam") {
-        const made = examToSubject(found.data);
-        setLibrary((prev) => ({ subjects: [...prev.subjects, made.subject] }));
-        showToast(`Dataset detected — created “${made.subject.title}” (${made.count} questions). See Library.`);
-        return;
-      }
-      setLibrary({ subjects: normalizeSubjects(found.data.subjects) });
-      let extra = "";
-      if (found.kind === "vertex-backup") {
-        const n = mergeAttempts(found.data.attempts || []);
-        if (n) extra = ` + ${n} attempt${n === 1 ? "" : "s"}`;
-      }
-      showToast(`Loaded ${found.data.subjects.length} subject(s)${extra}. See Library.`);
+    r.onload = async () => {
+      await withBusy("Reading file…", async () => {
+        const found = detectBackup(r.result);
+        if (found.kind === "invalid") { showToast(found.error); return; }
+        if (found.kind === "exam") {
+          const made = examToSubject(found.data);
+          setLibrary((prev) => ({ subjects: [...prev.subjects, made.subject] }));
+          showToast(`Dataset detected — created “${made.subject.title}” (${made.count} questions). See Library.`);
+          return;
+        }
+        setLibrary({ subjects: normalizeSubjects(found.data.subjects) });
+        let extra = "";
+        if (found.kind === "vertex-backup") {
+          const n = mergeAttempts(found.data.attempts || []);
+          if (n) extra = ` + ${n} attempt${n === 1 ? "" : "s"}`;
+        }
+        showToast(`Loaded ${found.data.subjects.length} subject(s)${extra}. See Library.`);
+      });
     };
     r.readAsText(f);
   };

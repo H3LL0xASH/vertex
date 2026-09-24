@@ -29,13 +29,27 @@ export function VertexProvider({ children }) {
   const [library, setLibrary] = useState(() => {
     try {
       const raw = get("vertexLibraryV1", "");
-      if (raw) { const d = JSON.parse(raw); if (d?.subjects) return d; }
+      if (raw) {
+        const d = JSON.parse(raw);
+        if (d?.subjects) {
+          // backfill creation stamps (old data predates them), preserving order
+          const now = Date.now();
+          d.subjects.forEach((s, si) => {
+            if (!s.createdAt) s.createdAt = now - (d.subjects.length - si) * 1000;
+            (s.chapters || []).forEach((c, ci) => {
+              if (!c.createdAt) c.createdAt = (s.createdAt || now) - ((s.chapters.length - ci) || 1);
+            });
+          });
+          return d;
+        }
+      }
     } catch { /* fall through */ }
     return structuredClone(librarySeed);
   });
   const [toast, setToast] = useState("");
   const [toastKey, setToastKey] = useState(0);
   const toastTimer = useRef(null);
+  const [busy, setBusy] = useState(null); // loading overlay message (null = hidden)
 
   useEffect(() => {
     // login screen is always light; the app theme applies once authed
@@ -44,7 +58,12 @@ export function VertexProvider({ children }) {
   }, [theme, authed]);
 
   useEffect(() => {
-    set("vertexLibraryV1", JSON.stringify(library));
+    try {
+      set("vertexLibraryV1", JSON.stringify(library));
+    } catch {
+      showToast("Storage is full — newest changes may not stick. Export a backup!");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [library]);
 
   const dismissToast = useCallback(() => {
@@ -58,6 +77,18 @@ export function VertexProvider({ children }) {
     setToastKey((k) => k + 1);
     // auto-dismiss like a native snackbar; X button dismisses instantly
     toastTimer.current = setTimeout(() => setToast(""), ms);
+  }, []);
+
+  // loading overlay for heavy file work (big JSON parses): shows first,
+  // runs the job after paint so the spinner is never skipped.
+  const withBusy = useCallback(async (msg, fn) => {
+    setBusy(msg);
+    await new Promise((r) => setTimeout(r, 60));
+    try {
+      return await fn();
+    } finally {
+      setBusy(null);
+    }
   }, []);
 
   const login = useCallback((name) => {
@@ -135,9 +166,10 @@ export function VertexProvider({ children }) {
     library, setLibrary,
     resetLibrary: () => setLibrary(structuredClone(librarySeed)),
     toast, toastKey, showToast, dismissToast,
+    busy, withBusy,
     linkDatasetToChapter, launchChapter, startAttempt, getAttempt,
   }), [user, authed, login, logout, theme, navCollapsed, toggleNav, library, toast, toastKey, showToast, dismissToast,
-    linkDatasetToChapter, launchChapter, startAttempt]);
+    busy, withBusy, linkDatasetToChapter, launchChapter, startAttempt]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

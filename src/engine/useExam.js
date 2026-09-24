@@ -7,7 +7,11 @@ import { gradeScore, reviewIndices } from "./examFormat.js";
 import { getAttempt, saveAttempt } from "./attempts.js";
 
 export function useExam(attemptId, initialReview = null) {
-  const [attempt, setAttempt] = useState(() => getAttempt(attemptId));
+  // malformed records (e.g. hand-edited storage) behave as "not found"
+  const [attempt, setAttempt] = useState(() => {
+    const a = getAttempt(attemptId);
+    return a && Array.isArray(a.questions) ? a : null;
+  });
   const [section, setSection] = useState("ALL");
   const [tag, setTag] = useState(null);
   const [review, setReview] = useState(initialReview); // 'WRONG' | 'UNATTEMPTED' | 'MARKED' | null

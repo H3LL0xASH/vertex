@@ -25,7 +25,7 @@ const DOC_BG = { pink: "#fbdfe2", blue: "#dde8fa", green: "#d9f2e2", orange: "#f
 const NEON = { pink: "#f43f5e", blue: "#3b82f6", green: "#22c55e", orange: "#f97316", purple: "#8b5cf6", teal: "#14b8a6" };
 
 export default function Library({ go }) {
-  const { library, setLibrary, resetLibrary, showToast, launchChapter, startAttempt } = useVertex();
+  const { library, setLibrary, showToast, launchChapter, startAttempt, withBusy } = useVertex();
   const [q, setQ] = useState("");
   const [expanded, setExpanded] = useState({}); // subId -> true = full grid, default = scroll row
   const rowRefs = useRef({});
@@ -64,12 +64,14 @@ export default function Library({ go }) {
     else setDsModal({ subjectId, chapterId: ch.id, title: ch.title });
   };
 
-  const linkAndLaunch = (subjectId, chapterId, rawJson, label) => {
-    const r = startAttempt(subjectId, chapterId, rawJson);
-    if (r.error) { showToast("Invalid dataset — " + r.error); return; }
-    setDsModal(null);
-    showToast(`“${label}” linked (${r.count} questions).`);
-    go("player", { attemptId: r.attemptId });
+  const linkAndLaunch = async (subjectId, chapterId, rawJson, label) => {
+    await withBusy("Linking dataset…", async () => {
+      const r = startAttempt(subjectId, chapterId, rawJson);
+      if (r.error) { showToast("Invalid dataset — " + r.error); return; }
+      setDsModal(null);
+      showToast(`“${label}” linked (${r.count} questions).`);
+      go("player", { attemptId: r.attemptId });
+    });
   };
 
   // menu opener — captures the button rect; the popup itself is portalled to
@@ -138,7 +140,33 @@ export default function Library({ go }) {
         c.title.toLowerCase().includes(query) || `${s.title} ${s.desc ?? ""}`.toLowerCase().includes(query)),
     })).filter((s) => `${s.title} ${s.desc ?? ""}`.toLowerCase().includes(query) || s.chapters.length);
   }, [library, q]);
-  const subPager = usePager(shown, 10);
+  const [sort, setSort] = useState(() => {
+    try { return localStorage.getItem("vertexSort") || "newest"; } catch { return "newest"; }
+  });
+  const changeSort = (v) => {
+    setSort(v);
+    try { localStorage.setItem("vertexSort", v); } catch { /* ignore */ }
+    subPager.reset();
+  };
+  // subjects sorted per control (default: newest first); chapters newest-first inside
+  const sorted = useMemo(() => {
+    const arr = [...shown];
+    switch (sort) {
+      case "oldest":
+        arr.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+        break;
+      case "az":
+        arr.sort((a, b) => a.title.localeCompare(b.title));
+        break;
+      case "za":
+        arr.sort((a, b) => b.title.localeCompare(a.title));
+        break;
+      default:
+        arr.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    }
+    return arr;
+  }, [shown, sort]);
+  const subPager = usePager(sorted, 10);
   useEffect(() => { subPager.reset(); }, [q]);
   // eslint-disable-next-line react-hooks/exhaustive-deps
 
@@ -155,25 +183,27 @@ export default function Library({ go }) {
   const doImport = (f) => {
     if (!f) return;
     const r = new FileReader();
-    r.onload = () => {
-      const found = detectBackup(r.result);
-      if (found.kind === "invalid") { showToast(found.error); return; }
-      if (found.kind === "exam") {
-        const made = examToSubject(found.data);
-        setLibrary((prev) => ({ subjects: [...prev.subjects, made.subject] }));
-        showToast(`Dataset detected — created “${made.subject.title}” (${made.count} questions).`);
-        return;
-      }
-      const norm = normalizeSubjects(found.data.subjects);
-      setLibrary({ subjects: norm });
-      setExpanded({});
-      let extra = "";
-      if (found.kind === "vertex-backup") {
-        const n = mergeAttempts(found.data.attempts || []);
-        extra = n ? ` + ${n} attempt${n === 1 ? "" : "s"}` : "";
-        setTick((t) => t + 1);
-      }
-      showToast(`Imported ${norm.length} subject(s)${extra}.`);
+    r.onload = async () => {
+      await withBusy("Reading file…", async () => {
+        const found = detectBackup(r.result);
+        if (found.kind === "invalid") { showToast(found.error); return; }
+        if (found.kind === "exam") {
+          const made = examToSubject(found.data);
+          setLibrary((prev) => ({ subjects: [...prev.subjects, made.subject] }));
+          showToast(`Dataset detected — created “${made.subject.title}” (${made.count} questions).`);
+          return;
+        }
+        const norm = normalizeSubjects(found.data.subjects);
+        setLibrary({ subjects: norm });
+        setExpanded({});
+        let extra = "";
+        if (found.kind === "vertex-backup") {
+          const n = mergeAttempts(found.data.attempts || []);
+          extra = n ? ` + ${n} attempt${n === 1 ? "" : "s"}` : "";
+          setTick((t) => t + 1);
+        }
+        showToast(`Imported ${norm.length} subject(s)${extra}.`);
+      });
     };
     r.readAsText(f);
   };
@@ -278,6 +308,13 @@ export default function Library({ go }) {
             <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Filter subjects / chapters..."
               className="border-0 outline-0 bg-transparent flex-1 text-[13.5px] text-[var(--v-ink)] min-w-0" />
           </div>
+          <select value={sort} onChange={(e) => changeSort(e.target.value)} title="Sort subjects" style={{ "--neon": "#8b5cf6" }}
+            className="neon rounded-xl border border-[var(--v-line)] bg-[var(--v-card-hi)] pl-3 pr-2 py-3 text-[13.5px] font-bold text-[var(--v-ink)] outline-none cursor-pointer">
+            <option value="newest">Newest first</option>
+            <option value="oldest">Oldest first</option>
+            <option value="az">Name A–Z</option>
+            <option value="za">Name Z–A</option>
+          </select>
           <button onClick={() => setExpOpen(true)} style={{ "--neon": "#8b5cf6" }} className="neon rounded-xl px-5 py-[13px] text-[13.5px] font-bold f3d-pill flex gap-2 items-center"><Ico n="down" s={16} /> Export</button>
           <button onClick={() => fileRef.current?.click()} style={{ "--neon": "#8b5cf6" }} className="neon rounded-xl px-5 py-[13px] text-[13.5px] font-bold f3d-pill flex gap-2 items-center"><Ico n="upload" s={16} /> Import</button>
           <input ref={fileRef} type="file" accept="application/json,.json" hidden onChange={(e) => { doImport(e.target.files[0]); e.target.value = ""; }} />
@@ -336,7 +373,7 @@ export default function Library({ go }) {
             </div>
             {expanded[s.id] ? (
               <div className="mt-4 grid gap-3 page-in" style={{ gridTemplateColumns: "repeat(auto-fill,minmax(250px,1fr))" }}>
-                {s.chapters.map((c) => chapterCard(s, c, false))}
+                {[...s.chapters].reverse().map((c) => chapterCard(s, c, false))}
                 {addTile(s, false, s.chapters.length === 0)}
               </div>
             ) : (
@@ -347,7 +384,7 @@ export default function Library({ go }) {
                   return (
                     <div ref={(el) => { rowRefs.current[s.id] = el; }} onScroll={() => checkRow(s.id)}
                       className={`flex gap-3 overflow-x-auto no-scrollbar snap-x px-2 py-6 ${bc}`}>
-                      {s.chapters.map((c) => chapterCard(s, c, true))}
+                      {[...s.chapters].reverse().map((c) => chapterCard(s, c, true))}
                       {addTile(s, true, false)}
                     </div>
                   );
@@ -608,7 +645,7 @@ function HistoryModal({ hist, go, close, refresh }) {
 }
 
 function LibraryModal({ modal, close, mutate, library }) {
-  const { showToast, linkDatasetToChapter } = useVertex();
+  const { showToast, linkDatasetToChapter, withBusy } = useVertex();
   const existing = modal.subId ? library.subjects.find((s) => s.id === modal.subId) : null;
   const existingCh = modal.mode === "chapter-edit" && existing
     ? existing.chapters.find((c) => c.id === modal.chId) : null;
@@ -654,7 +691,7 @@ function LibraryModal({ modal, close, mutate, library }) {
       } catch { linkedInfo = "Linked dataset (unreadable)"; }
     }
     return (
-      <Modal title={isEdit ? "Edit chapter" : "Add chapter"} okText={isEdit ? "Save" : "Create"} onClose={close} onOk={() => {
+      <Modal title={isEdit ? "Edit chapter" : "Add chapter"} okText={isEdit ? "Save" : "Create"} onClose={close} onOk={async () => {
         if (!title.trim() || (!isEdit && !subId)) return;
         if (isEdit) {
           mutate((d) => {
@@ -662,20 +699,24 @@ function LibraryModal({ modal, close, mutate, library }) {
             if (c) Object.assign(c, { title: title.trim(), desc: desc.trim(), tint });
           });
           if (pendingJson) {
-            const r = linkDatasetToChapter(modal.subId, modal.chId, pendingJson.raw);
-            if (r.error) { showToast("Invalid dataset — " + r.error); return; }
-            showToast(`Dataset linked (${r.count} questions).`);
+            await withBusy("Linking dataset…", async () => {
+              const r = linkDatasetToChapter(modal.subId, modal.chId, pendingJson.raw);
+              if (r.error) showToast("Invalid dataset — " + r.error);
+              else showToast(`Dataset linked (${r.count} questions).`);
+            });
           } else showToast("Chapter saved.");
         } else {
           const newId = uid("ch");
           mutate((d) => {
             const s = d.subjects.find((x) => x.id === subId);
-            s?.chapters.push({ id: newId, title: title.trim(), desc: desc.trim(), tint });
+            s?.chapters.push({ id: newId, title: title.trim(), desc: desc.trim(), tint, createdAt: Date.now() });
           });
           if (pendingJson) {
-            const r = linkDatasetToChapter(subId, newId, pendingJson.raw);
-            if (r.error) showToast("Chapter added, but dataset invalid — " + r.error);
-            else showToast(`Chapter added with ${r.count} questions.`);
+            await withBusy("Linking dataset…", async () => {
+              const r = linkDatasetToChapter(subId, newId, pendingJson.raw);
+              if (r.error) showToast("Chapter added, but dataset invalid — " + r.error);
+              else showToast(`Chapter added with ${r.count} questions.`);
+            });
           } else showToast("Chapter added — link a dataset to start testing.");
         }
         close();
@@ -738,7 +779,7 @@ function LibraryModal({ modal, close, mutate, library }) {
           });
           showToast("Subject saved.");
         } else {
-          mutate((d) => { d.subjects.push({ id: uid("sub"), title: title.trim(), desc: desc.trim(), icon, tint, chapters: [] }); });
+          mutate((d) => { d.subjects.push({ id: uid("sub"), title: title.trim(), desc: desc.trim(), icon, tint, createdAt: Date.now(), chapters: [] }); });
           showToast("Subject added.");
         }
         close();
