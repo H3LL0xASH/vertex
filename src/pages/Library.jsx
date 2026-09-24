@@ -347,7 +347,7 @@ export default function Library({ go }) {
         )}
         {subPager.pageItems.map((s, si) => (
           <Card key={s.id} float delay={si * 0.5}
-            className={`mt-3.5 p-5 ${menu?.kind === "sub" && menu.subId === s.id ? "neon-lock" : ""}`}
+            className={`no-gloss mt-3.5 p-5 ${menu?.kind === "sub" && menu.subId === s.id ? "neon-lock" : ""}`}
             style={{ "--neon": "#8b5cf6" }}>
             <div className="flex items-start gap-3.5 flex-wrap">
               <Orb tint={s.tint} icon={s.icon} />

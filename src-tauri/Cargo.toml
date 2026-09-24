@@ -1,0 +1,17 @@
+[package]
+name = "vertex"
+version = "1.0.0"
+description = "Vertex Exam Simulator — practice any question bank on a real CBT interface."
+authors = ["H3LL0xASH"]
+license = "MIT"
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]
