@@ -11,6 +11,7 @@ import Player from "./pages/Player.jsx";
 import Result from "./pages/Result.jsx";
 import { useVertex } from "./store.jsx";
 import { SpeedInsights } from "@vercel/speed-insights/react";
+import { Analytics as VercelAnalytics } from "@vercel/analytics/react";
 
 /* Safety net: a crashing tab shows a fallback instead of a blank page. */
 class TabGuard extends Component {
@@ -142,6 +143,7 @@ export default function App() {
     <VertexProvider>
       <Shell />
       <SpeedInsights />
+      <VercelAnalytics />
     </VertexProvider>
   );
 }
