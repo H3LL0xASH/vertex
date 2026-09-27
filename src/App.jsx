@@ -10,6 +10,7 @@ import Upload from "./pages/Upload.jsx";
 import Player from "./pages/Player.jsx";
 import Result from "./pages/Result.jsx";
 import { useVertex } from "./store.jsx";
+import { SpeedInsights } from "@vercel/speed-insights/react";
 
 /* Safety net: a crashing tab shows a fallback instead of a blank page. */
 class TabGuard extends Component {
@@ -140,6 +141,7 @@ export default function App() {
   return (
     <VertexProvider>
       <Shell />
+      <SpeedInsights />
     </VertexProvider>
   );
 }
